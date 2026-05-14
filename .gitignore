@@ -1,0 +1,7 @@
+.env
+*.log
+litegig_error.log
+litegig.db
+litegig_data/
+litegig_uploads/
+uploads/

@@ -2,46 +2,145 @@
 /*
 README (Deployment – shared hosting, PHP 8+ / SQLite)
 1) Upload this single file as `litegig.php` to your web root (e.g., `public_html/`).
-2) Ensure the folder is writable by PHP so it can create `litegig.db` and `uploads/`.
+2) Copy `.env.example` to `.env`; keep `litegig_data/` and `litegig_uploads/` writable by PHP.
 3) Visit `https://your-domain.com/litegig.php` to auto-initialize the database.
 4) Register the first user — it becomes admin automatically.
 5) Admin: manage Task Types via “Task Types” (schema-driven templates).
 6) Optional: Admin → “Load Sample Data” to populate demo users/requests.
-7) Optional: toggle CSV PII export in the config block (`export_pii`).
+7) Optional: toggle CSV PII export with `LITEGIG_EXPORT_PII=true`.
 8) Optional cron: run `php litegig.php action=cron_cleanup token=YOUR_TOKEN`.
 9) Keep payments peer-to-peer; this app only records manual confirmations.
-10) Back up `litegig.db` regularly (download via hosting file manager).
+10) Back up the configured SQLite database regularly.
 */
 
 /*
 Customize here
 - accentColor, fee percent, session timeout, upload directory
-- toggle CSV PII export with `export_pii` (default: minimal PII)
+- set secrets and deployment-specific paths in `.env`
 - adjust default task types in `default_task_types()` below
 */
 
 declare(strict_types=1);
 
+function load_env_file(string $path): array {
+    if (!is_file($path)) return [];
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if ($lines === false) return [];
+    $env = [];
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#')) continue;
+        $pos = strpos($line, '=');
+        if ($pos === false) continue;
+        $key = trim(substr($line, 0, $pos));
+        $value = trim(substr($line, $pos + 1));
+        if ($key === '') continue;
+        if ((str_starts_with($value, '"') && str_ends_with($value, '"')) || (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
+            $value = substr($value, 1, -1);
+        }
+        $env[$key] = $value;
+    }
+    return $env;
+}
+
+function env_value(array $env, string $key, ?string $default = null): ?string {
+    $value = getenv($key);
+    if ($value !== false) return (string)$value;
+    return array_key_exists($key, $env) ? (string)$env[$key] : $default;
+}
+
+function env_int(array $env, string $key, int $default): int {
+    $value = env_value($env, $key, null);
+    if ($value === null || !preg_match('/^-?\d+$/', $value)) return $default;
+    return (int)$value;
+}
+
+function env_bool(array $env, string $key, bool $default): bool {
+    $value = env_value($env, $key, null);
+    if ($value === null) return $default;
+    return in_array(strtolower($value), ['1', 'true', 'yes', 'on'], true);
+}
+
+function app_path(string $path): string {
+    if ($path === '') return $path;
+    $isAbsolute = preg_match('/^(?:[A-Za-z]:[\\\\\/]|\/|\\\\\\\\)/', $path) === 1;
+    return $isAbsolute ? $path : __DIR__ . DIRECTORY_SEPARATOR . $path;
+}
+
+$ENV = load_env_file(__DIR__ . DIRECTORY_SEPARATOR . '.env');
+$DATA_DIR = app_path((string)env_value($ENV, 'LITEGIG_DATA_DIR', 'litegig_data'));
+
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
-ini_set('error_log', __DIR__ . DIRECTORY_SEPARATOR . 'litegig_error.log');
 
 $CFG = [
     'app_name' => 'LiteGig',
-    'db_path' => __DIR__ . DIRECTORY_SEPARATOR . 'litegig.db',
-    'upload_dir' => __DIR__ . DIRECTORY_SEPARATOR . 'uploads',
+    'data_dir' => $DATA_DIR,
+    'db_path' => app_path((string)env_value($ENV, 'LITEGIG_DB_PATH', $DATA_DIR . DIRECTORY_SEPARATOR . 'litegig.db')),
+    'upload_dir' => app_path((string)env_value($ENV, 'LITEGIG_UPLOAD_DIR', dirname(__DIR__) . DIRECTORY_SEPARATOR . 'litegig_uploads')),
+    'log_path' => app_path((string)env_value($ENV, 'LITEGIG_LOG_PATH', $DATA_DIR . DIRECTORY_SEPARATOR . 'litegig_error.log')),
     'currency' => 'USD',
     'default_fee_percent' => 8.0,
-    'accentColor' => '#1A73E8',
+    'accentColor' => '#111111',
     'poll_ms' => 15000,
-    'session_timeout_sec' => 60 * 60 * 24 * 7,
-    'export_pii' => false,
-    'cron_token' => '',
+    'session_timeout_sec' => env_int($ENV, 'LITEGIG_SESSION_TIMEOUT_SEC', 60 * 60 * 2),
+    'session_absolute_sec' => env_int($ENV, 'LITEGIG_SESSION_ABSOLUTE_SEC', 60 * 60 * 24),
+    'export_pii' => env_bool($ENV, 'LITEGIG_EXPORT_PII', false),
+    'cron_token' => env_value($ENV, 'LITEGIG_CRON_TOKEN', ''),
     'cleanup_stale_new_days' => 14,
+    'max_upload_bytes' => env_int($ENV, 'LITEGIG_MAX_UPLOAD_BYTES', 5 * 1024 * 1024),
+    'allowed_upload_ext' => ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'txt', 'csv'],
+    'allowed_upload_mime' => ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'text/csv', 'application/csv'],
+    'blocked_upload_ext' => ['php', 'phtml', 'phar', 'cgi', 'pl', 'asp', 'aspx', 'jsp', 'html', 'htm', 'js', 'svg', 'sh', 'bat', 'cmd', 'exe', 'dll', 'so'],
+    'rate_login_limit' => env_int($ENV, 'LITEGIG_RATE_LOGIN_LIMIT', 5),
+    'rate_login_window_sec' => env_int($ENV, 'LITEGIG_RATE_LOGIN_WINDOW_SEC', 15 * 60),
+    'rate_critical_limit' => env_int($ENV, 'LITEGIG_RATE_CRITICAL_LIMIT', 60),
+    'rate_critical_window_sec' => env_int($ENV, 'LITEGIG_RATE_CRITICAL_WINDOW_SEC', 60 * 60),
+    'security_headers' => env_bool($ENV, 'LITEGIG_SECURITY_HEADERS', true),
 ];
 
+if (!is_dir((string)$CFG['data_dir'])) {
+    @mkdir((string)$CFG['data_dir'], 0750, true);
+}
+ini_set('error_log', (string)$CFG['log_path']);
+
 date_default_timezone_set(@date_default_timezone_get() ?: 'UTC');
+
+function app_log(string $message, array $context = []): void {
+    $line = '[' . now_iso() . '] ' . $message;
+    if ($context) {
+        $line .= ' ' . json_encode($context, JSON_UNESCAPED_SLASHES);
+    }
+    error_log($line);
+}
+
+// Customize CSP here if you remove inline scripts/styles or stop using Google-hosted Inter.
+function send_security_headers(): void {
+    global $CFG;
+    if (PHP_SAPI === 'cli' || headers_sent() || !$CFG['security_headers']) return;
+    header("Content-Security-Policy: default-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self'");
+    header('X-Frame-Options: DENY');
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: same-origin');
+}
+send_security_headers();
+
+set_exception_handler(function (Throwable $e): void {
+    app_log('Unhandled exception', [
+        'type' => get_class($e),
+        'message' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+    ]);
+    http_response_code(500);
+    if (PHP_SAPI === 'cli') {
+        echo "ERROR\n";
+    } else {
+        echo 'Internal Server Error';
+    }
+    exit;
+});
 
 $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443);
 session_set_cookie_params([
@@ -53,21 +152,41 @@ session_set_cookie_params([
 ]);
 session_start();
 
-if (!isset($_SESSION['__last_activity'])) {
-    $_SESSION['__last_activity'] = time();
-}
-if (time() - (int)$_SESSION['__last_activity'] > (int)$CFG['session_timeout_sec']) {
+function reset_session_state(): void {
     $_SESSION = [];
     if (ini_get('session.use_cookies')) {
         $p = session_get_cookie_params();
-        setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], $p['secure'], $p['httponly']);
+        setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'] ?? '', $p['secure'], $p['httponly']);
     }
     session_destroy();
     session_start();
 }
+
+if (!isset($_SESSION['__created_at'])) {
+    $_SESSION['__created_at'] = time();
+}
+if (!isset($_SESSION['__last_activity'])) {
+    $_SESSION['__last_activity'] = time();
+}
+$inactiveTooLong = time() - (int)$_SESSION['__last_activity'] > (int)$CFG['session_timeout_sec'];
+$absoluteTooLong = time() - (int)$_SESSION['__created_at'] > (int)$CFG['session_absolute_sec'];
+if ($inactiveTooLong || $absoluteTooLong) {
+    reset_session_state();
+    $_SESSION['__created_at'] = time();
+}
 $_SESSION['__last_activity'] = time();
 
-function h(?string $s): string { return htmlspecialchars($s ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8'); }
+function htmlEscape(mixed $value): string {
+    if ($value === null) return '';
+    if (!is_scalar($value)) {
+        $value = json_encode($value, JSON_UNESCAPED_SLASHES);
+    }
+    return htmlspecialchars((string)$value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+function h(mixed $s): string { return htmlEscape($s); }
+function json_for_html_script(mixed $value): string {
+    return json_encode($value, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?: 'null';
+}
 function now_iso(): string { return gmdate('Y-m-d\TH:i:s\Z'); }
 function client_ip(): string { return substr((string)($_SERVER['REMOTE_ADDR'] ?? ''), 0, 200); }
 function user_agent(): string { return substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 400); }
@@ -217,6 +336,13 @@ function init_db(PDO $pdo): void {
         updated_at TEXT NOT NULL
     )");
 
+    $pdo->exec("CREATE TABLE IF NOT EXISTS rate_limits (
+        rate_key TEXT PRIMARY KEY,
+        hits INTEGER NOT NULL DEFAULT 0,
+        window_start INTEGER NOT NULL,
+        updated_at TEXT NOT NULL
+    )");
+
     $count = (int)$pdo->query("SELECT COUNT(*) AS c FROM task_types")->fetch()['c'];
     if ($count === 0) {
         $stmt = $pdo->prepare("INSERT INTO task_types (name, fields_json, created_at) VALUES (?, ?, ?)");
@@ -300,6 +426,60 @@ function add_event(int $requestId, ?int $actorId, string $type, string $note): v
     $stmt->execute([$requestId, $actorId, $type, $note, now_iso()]);
 }
 
+function enforce_rate_limit(string $key, int $limit, int $windowSec, string $message = 'Too many requests. Try again later.'): void {
+    $pdo = db();
+    $now = time();
+    $stmt = $pdo->prepare("SELECT hits, window_start FROM rate_limits WHERE rate_key = ?");
+    $stmt->execute([$key]);
+    $row = $stmt->fetch();
+
+    if (!$row || ($now - (int)$row['window_start']) >= $windowSec) {
+        $pdo->prepare("DELETE FROM rate_limits WHERE rate_key = ?")->execute([$key]);
+        $insert = $pdo->prepare("INSERT INTO rate_limits (rate_key, hits, window_start, updated_at) VALUES (?, 1, ?, ?)");
+        $insert->execute([$key, $now, now_iso()]);
+        return;
+    }
+
+    if ((int)$row['hits'] >= $limit) {
+        http_response_code(429);
+        header('Retry-After: ' . max(1, $windowSec - ($now - (int)$row['window_start'])));
+        echo $message;
+        exit;
+    }
+
+    $inc = $pdo->prepare("UPDATE rate_limits SET hits = hits + 1, updated_at = ? WHERE rate_key = ?");
+    $inc->execute([now_iso(), $key]);
+}
+
+function enforce_login_rate_limit(string $email): void {
+    global $CFG;
+    $normalized = strtolower(trim($email));
+    enforce_rate_limit('login:' . client_ip() . ':' . hash('sha256', $normalized), (int)$CFG['rate_login_limit'], (int)$CFG['rate_login_window_sec'], 'Too many login attempts. Try again later.');
+}
+
+function enforce_critical_rate_limit(string $action, int $userId): void {
+    global $CFG;
+    enforce_rate_limit('critical:' . $action . ':' . $userId . ':' . client_ip(), (int)$CFG['rate_critical_limit'], (int)$CFG['rate_critical_window_sec']);
+}
+
+function input_string(array $source, string $key, int $maxLen = 1000): string {
+    $value = trim((string)($source[$key] ?? ''));
+    if (strlen($value) > $maxLen) $value = substr($value, 0, $maxLen);
+    return $value;
+}
+
+function input_int(array $source, string $key, int $default = 0, int $min = 0, int $max = PHP_INT_MAX): int {
+    $raw = $source[$key] ?? null;
+    if ($raw === null || !preg_match('/^-?\d+$/', (string)$raw)) return $default;
+    return max($min, min($max, (int)$raw));
+}
+
+function input_float(array $source, string $key, float $default, float $min, float $max): float {
+    $raw = $source[$key] ?? null;
+    if ($raw === null || $raw === '' || !is_numeric($raw)) return $default;
+    return max($min, min($max, (float)$raw));
+}
+
 function current_user(): ?array {
     if (empty($_SESSION['uid'])) return null;
     $pdo = db();
@@ -326,6 +506,46 @@ function require_admin(): array {
         exit;
     }
     return $u;
+}
+
+function status_options(): array {
+    return [
+        'new' => 'New',
+        'accepted' => 'Accepted',
+        'picked_up' => 'Picked up',
+        'payment_confirmed' => 'Payment confirmed',
+        'delivered' => 'Delivered',
+        'completed' => 'Completed',
+        'expired' => 'Expired',
+        'all' => 'All',
+    ];
+}
+
+function validate_status_filter(string $status): string {
+    return array_key_exists($status, status_options()) ? $status : 'new';
+}
+
+function is_request_participant(array $u, array $r): bool {
+    $uid = (int)$u['id'];
+    return $uid === (int)$r['requester_id'] || ($r['runner_id'] !== null && $uid === (int)$r['runner_id']);
+}
+
+function can_view_request(array $u, array $r): bool {
+    if ((int)$u['is_admin'] === 1) return true;
+    if (is_request_participant($u, $r)) return true;
+    return (string)$r['status'] === 'new';
+}
+
+function can_comment_request(array $u, array $r): bool {
+    return (int)$u['is_admin'] === 1 || is_request_participant($u, $r);
+}
+
+function require_request_view(array $u, array $r): void {
+    if (!can_view_request($u, $r)) {
+        http_response_code(403);
+        render_layout('Forbidden', '<div class="card">You do not have access to this request.</div>');
+        exit;
+    }
 }
 
 function normalize_task_type_row(array $row): array {
@@ -366,6 +586,7 @@ function get_task_type_by_id(int $id): ?array {
 }
 
 function sanitize_upload_filename(string $name): string {
+    $name = basename($name);
     $name = preg_replace('/[^A-Za-z0-9._-]+/', '_', $name) ?? 'file';
     $name = trim($name, '._-');
     if ($name === '') $name = 'file';
@@ -375,8 +596,59 @@ function sanitize_upload_filename(string $name): string {
 function ensure_upload_dir(): void {
     global $CFG;
     if (!is_dir($CFG['upload_dir'])) {
-        @mkdir($CFG['upload_dir'], 0755, true);
+        @mkdir($CFG['upload_dir'], 0750, true);
     }
+    $deny = (string)$CFG['upload_dir'] . DIRECTORY_SEPARATOR . '.htaccess';
+    if (!is_file($deny)) {
+        @file_put_contents($deny, "Require all denied\nDeny from all\n");
+    }
+    $index = (string)$CFG['upload_dir'] . DIRECTORY_SEPARATOR . 'index.html';
+    if (!is_file($index)) {
+        @file_put_contents($index, '');
+    }
+}
+
+function validate_upload(array $file, array &$errors, string $key): ?array {
+    global $CFG;
+    $error = (int)($file['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($error !== UPLOAD_ERR_OK) {
+        $errors[$key] = 'Upload failed.';
+        return null;
+    }
+
+    $size = (int)($file['size'] ?? 0);
+    if ($size <= 0 || $size > (int)$CFG['max_upload_bytes']) {
+        $errors[$key] = 'File is too large or empty.';
+        return null;
+    }
+
+    $tmp = (string)($file['tmp_name'] ?? '');
+    if ($tmp === '' || !is_uploaded_file($tmp)) {
+        $errors[$key] = 'Upload was not accepted.';
+        return null;
+    }
+
+    $safe = sanitize_upload_filename((string)($file['name'] ?? 'file'));
+    $ext = strtolower(pathinfo($safe, PATHINFO_EXTENSION));
+    if ($ext === '' || in_array($ext, $CFG['blocked_upload_ext'], true) || !in_array($ext, $CFG['allowed_upload_ext'], true)) {
+        $errors[$key] = 'File type is not allowed.';
+        return null;
+    }
+
+    $mime = '';
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo) {
+            $mime = (string)finfo_file($finfo, $tmp);
+            finfo_close($finfo);
+        }
+    }
+    if ($mime !== '' && !in_array($mime, $CFG['allowed_upload_mime'], true)) {
+        $errors[$key] = 'File content type is not allowed.';
+        return null;
+    }
+
+    return ['tmp' => $tmp, 'ext' => $ext, 'mime' => $mime];
 }
 
 function parse_price_to_cents(string $raw): ?int {
@@ -438,20 +710,15 @@ function coerce_metadata_from_post(array $taskType, array $post, array $files, a
             $value = is_string($existing) ? $existing : null;
 
             if (!empty($files[$key]) && is_array($files[$key]) && ($files[$key]['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE) {
-                if (($files[$key]['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
-                    $errors[$key] = 'Upload failed.';
-                } else {
+                $upload = validate_upload($files[$key], $errors, $key);
+                if ($upload) {
                     ensure_upload_dir();
-                    $orig = (string)($files[$key]['name'] ?? 'file');
-                    $safe = sanitize_upload_filename($orig);
-                    $ext = '';
-                    $dot = strrpos($safe, '.');
-                    if ($dot !== false) $ext = substr($safe, $dot);
-                    $final = 'att_' . bin2hex(random_bytes(8)) . $ext;
+                    $final = 'att_' . bin2hex(random_bytes(16)) . '.' . $upload['ext'];
                     $dest = $CFG['upload_dir'] . DIRECTORY_SEPARATOR . $final;
-                    if (!move_uploaded_file((string)$files[$key]['tmp_name'], $dest)) {
+                    if (!move_uploaded_file((string)$upload['tmp'], $dest)) {
                         $errors[$key] = 'Could not save file.';
                     } else {
+                        @chmod($dest, 0640);
                         $value = $final;
                     }
                 }
@@ -642,7 +909,10 @@ function render_layout(string $title, string $content): void {
             $nav .= '<a class="navlink" href="?action=export_csv">Export</a>';
             $nav .= '<a class="navlink" href="?action=load_sample_data">Load Sample</a>';
         }
-        $nav .= '<a class="navlink" href="?action=logout">Logout</a>';
+        $nav .= '<form class="navform" method="post" action="?action=logout">'
+            . '<input type="hidden" name="csrf" value="' . h(csrf_token()) . '">'
+            . '<button class="navlink navbutton" type="submit">Logout</button>'
+            . '</form>';
     } else {
         $nav .= '<a class="navlink" href="?action=login">Login</a>';
         $nav .= '<a class="navlink" href="?action=register">Register</a>';
@@ -658,33 +928,35 @@ function render_layout(string $title, string $content): void {
     echo ':root{--accent:' . h($accent) . ';--bg:#fff;--fg:#111;--muted:#666;--line:#e6e6e6;--card:#fafafa;--danger:#b00020;--ok:#0b6b34;}'
         . 'html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}'
         . 'a{color:var(--accent);text-decoration:none;}'
-        . '.wrap{max-width:820px;margin:0 auto;padding:14px 12px 40px;}'
+        . '.wrap{max-width:920px;margin:0 auto;padding:16px 14px 44px;}'
         . '.top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0 14px;border-bottom:1px solid var(--line);}'
-        . '.brand{font-weight:800;letter-spacing:-.02em;font-size:18px;}'
+        . '.brand{font-weight:800;letter-spacing:0;font-size:18px;}'
         . '.nav{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;}'
-        . '.navlink{display:inline-block;padding:8px 10px;border:1px solid var(--line);border-radius:10px;color:var(--fg);font-weight:600;font-size:13px;}'
+        . '.navform{margin:0;}'
+        . '.navlink{display:inline-block;padding:8px 10px;border:1px solid var(--line);border-radius:8px;color:var(--fg);font-weight:600;font-size:13px;background:#fff;}'
+        . '.navbutton{font:inherit;cursor:pointer;}'
         . '.navlink:active{transform:translateY(1px);}'
-        . '.card{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:14px;margin:12px 0;}'
+        . '.card{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:14px;margin:12px 0;}'
         . '.row{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;}'
         . '.stack{display:flex;flex-direction:column;gap:8px;}'
-        . '.title{font-size:18px;font-weight:800;letter-spacing:-.02em;}'
+        . '.title{font-size:18px;font-weight:800;letter-spacing:0;}'
         . '.sub{color:var(--muted);font-size:13px;}'
         . '.badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;font-weight:700;font-size:12px;background:#fff;}'
         . '.price{font-weight:900;font-size:16px;}'
-        . '.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:#fff;color:var(--fg);font-weight:800;font-size:14px;cursor:pointer;}'
+        . '.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--fg);font-weight:800;font-size:14px;cursor:pointer;}'
         . '.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff;}'
         . '.btn-danger{background:var(--danger);border-color:var(--danger);color:#fff;}'
         . '.btn:disabled{opacity:.6;cursor:not-allowed;}'
         . '.btnblock{width:100%;}'
         . '.grid{display:grid;grid-template-columns:1fr;gap:10px;}'
         . 'label{display:block;font-weight:700;font-size:13px;margin:0 0 6px;}'
-        . 'input,select,textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;padding:12px 12px;font-size:15px;background:#fff;}'
+        . 'input,select,textarea{width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:12px 12px;font-size:15px;background:#fff;}'
         . 'textarea{min-height:92px;resize:vertical;}'
         . '.help{color:var(--muted);font-size:12px;margin-top:6px;}'
         . '.err{color:var(--danger);font-size:12px;margin-top:6px;}'
         . '.ok{color:var(--ok);font-size:12px;margin-top:6px;}'
         . '.list{display:flex;flex-direction:column;gap:10px;}'
-        . '.item{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fff;}'
+        . '.item{border:1px solid var(--line);border-radius:8px;padding:12px;background:#fff;}'
         . '.itemtop{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;}'
         . '.itemtitle{font-weight:900;font-size:15px;margin:0 0 2px;}'
         . '.itemmeta{color:var(--muted);font-size:12px;line-height:1.35;}'
@@ -693,7 +965,7 @@ function render_layout(string $title, string $content): void {
         . '.table td{padding:10px 0;border-bottom:1px solid var(--line);vertical-align:top;}'
         . '.table td:first-child{color:var(--muted);width:38%;padding-right:12px;}'
         . '.foot{margin-top:14px;color:var(--muted);font-size:12px;line-height:1.45;}'
-        . '.flash{border-radius:12px;padding:10px 12px;margin:10px 0;border:1px solid var(--line);background:#fff;}'
+        . '.flash{border-radius:8px;padding:10px 12px;margin:10px 0;border:1px solid var(--line);background:#fff;}'
         . '.flash.error{border-color:rgba(176,0,32,.25);background:rgba(176,0,32,.05);}'
         . '.flash.ok{border-color:rgba(11,107,52,.25);background:rgba(11,107,52,.06);}'
         . '.split{display:grid;grid-template-columns:1fr;gap:10px;}'
@@ -708,7 +980,7 @@ function render_layout(string $title, string $content): void {
     }
 
     echo $content;
-    echo '<div class="foot">Payments are peer-to-peer. LiteGig only records manual confirmations; it does not process or store payment details.</div>';
+    echo '<div class="foot">Payments are peer-to-peer. LiteGig only records manual confirmations; it does not process or store payment details. <a href="SECURITY.md">Security</a> · <a href="SETUP.md">Docs</a></div>';
     echo '</div></body></html>';
 }
 
@@ -752,8 +1024,8 @@ function action_register(): void {
     $pdo = db();
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require_csrf();
-        $email = trim((string)($_POST['email'] ?? ''));
-        $name = trim((string)($_POST['display_name'] ?? ''));
+        $email = input_string($_POST, 'email', 254);
+        $name = input_string($_POST, 'display_name', 120);
         $pass = (string)($_POST['password'] ?? '');
 
         $errors = [];
@@ -767,7 +1039,11 @@ function action_register(): void {
             $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, display_name, is_admin, created_at) VALUES (?, ?, ?, ?, ?)");
             $stmt->execute([$email, password_hash($pass, PASSWORD_DEFAULT), $name, $isFirst ? 1 : 0, now_iso()]);
             $uid = (int)$pdo->lastInsertId();
+            session_regenerate_id(true);
             $_SESSION['uid'] = $uid;
+            $_SESSION['__created_at'] = time();
+            $_SESSION['__last_activity'] = time();
+            unset($_SESSION['csrf']);
             audit_log($uid, 'register', 'user', $uid, ['is_admin' => $isFirst]);
             flash_set('ok', $isFirst ? 'Account created. You are admin (first user).' : 'Account created.');
             redirect_to('?action=list_requests');
@@ -795,11 +1071,16 @@ function render_login_form(string $email, array $errors): string {
 function action_login(): void {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require_csrf();
-        $email = trim((string)($_POST['email'] ?? ''));
+        $email = input_string($_POST, 'email', 254);
         $pass = (string)($_POST['password'] ?? '');
+        enforce_login_rate_limit($email);
         $u = user_by_email($email);
         if ($u && password_verify($pass, (string)$u['password_hash'])) {
+            session_regenerate_id(true);
             $_SESSION['uid'] = (int)$u['id'];
+            $_SESSION['__created_at'] = time();
+            $_SESSION['__last_activity'] = time();
+            unset($_SESSION['csrf']);
             audit_log((int)$u['id'], 'login', 'user', (int)$u['id']);
             flash_set('ok', 'Logged in.');
             redirect_to('?action=list_requests');
@@ -812,11 +1093,15 @@ function action_login(): void {
 }
 
 function action_logout(): void {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        http_response_code(405);
+        echo 'Method not allowed';
+        exit;
+    }
+    require_csrf();
     $u = current_user();
     if ($u) audit_log((int)$u['id'], 'logout', 'user', (int)$u['id']);
-    $_SESSION = [];
-    session_destroy();
-    session_start();
+    reset_session_state();
     flash_set('ok', 'Logged out.');
     redirect_to('?');
 }
@@ -861,13 +1146,24 @@ function validate_task_type_json(string $json, array &$out): ?string {
         if (!is_array($f)) return 'Every field must be an object.';
         if (empty($f['key']) || !is_string($f['key'])) return 'Every field needs a string `key`.';
         if (empty($f['label']) || !is_string($f['label'])) return 'Every field needs a string `label`.';
+        if (!preg_match('/^[A-Za-z][A-Za-z0-9_]{0,63}$/', $f['key'])) return 'Field keys must start with a letter and use only letters, numbers, and underscores.';
+        if (strlen($f['label']) > 120) return 'Field labels must be 120 characters or fewer.';
         $type = (string)($f['type'] ?? '');
         $allowed = ['text', 'textarea', 'number', 'price', 'boolean', 'date', 'time', 'datetime', 'geo', 'select', 'attachment', 'note', 'readonly'];
         if (!in_array($type, $allowed, true)) return 'Invalid type: ' . $type;
         if ($type === 'select') {
             $opts = $f['options'] ?? null;
             if (!is_array($opts) || count($opts) === 0) return 'Select fields require `options`.';
+            foreach ($opts as $o) {
+                if (!is_array($o)) return 'Select options must be objects.';
+                if (!array_key_exists('value', $o) || !is_scalar($o['value'])) return 'Select options need scalar values.';
+                if (strlen((string)$o['value']) > 120 || strlen((string)($o['label'] ?? $o['value'])) > 120) return 'Select option values and labels must be 120 characters or fewer.';
+            }
         }
+    }
+    $keys = array_flip(array_map(fn($f) => (string)$f['key'], $fields));
+    foreach ($summary as $key) {
+        if (!is_string($key) || !isset($keys[$key])) return 'Summary fields must reference defined field keys.';
     }
     if (!is_array($summary)) $summary = [];
     $out = $decoded;
@@ -903,28 +1199,94 @@ function render_task_type_form(string $mode, array $values, array $errors): stri
         . '</div>';
 
     $html .= '<div class="card" id="preview_card" style="display:none"><div class="title">Preview</div><div id="preview_fields" style="margin-top:10px"></div></div>';
-    $html .= '<script>'
-        . 'function el(tag, attrs, html){var e=document.createElement(tag);if(attrs){Object.keys(attrs).forEach(k=>e.setAttribute(k,attrs[k]));}if(html!==undefined)e.innerHTML=html;return e;}'
-        . 'function renderField(field){var key=field.key||"";var type=field.type||"text";var label=field.label||key;var req=!!field.required;var wrap=el("div",null);wrap.style.marginBottom="12px";wrap.appendChild(el("label",null,label+(req?" *":"")));var input=null;'
-        . 'if(type==="textarea"){input=el("textarea",{name:key});}'
-        . 'else if(type==="select"){input=el("select",{name:key});(field.options||[]).forEach(o=>{var opt=el("option",{value:o.value||""},(o.label||o.value||""));input.appendChild(opt);});}'
-        . 'else if(type==="boolean"){var c=el("div");var cb=el("input",{type:"checkbox",name:key,value:"1"});cb.style.width="auto";cb.style.marginRight="10px";c.appendChild(cb);c.appendChild(el("span",null,"Yes"));wrap.appendChild(c);return wrap;}'
-        . 'else if(type==="price"){input=el("input",{type:"text",name:key,placeholder:(field.placeholder||"e.g., 12.34")});}'
-        . 'else if(type==="number"){input=el("input",{type:"number",name:key,step:"any",placeholder:(field.placeholder||"")});}'
-        . 'else if(type==="date"){input=el("input",{type:"date",name:key});}'
-        . 'else if(type==="time"){input=el("input",{type:"time",name:key});}'
-        . 'else if(type==="datetime"){input=el("input",{type:"datetime-local",name:key});}'
-        . 'else if(type==="geo"){var a=el("input",{type:"text",name:key+"_address",placeholder:(field.placeholder||"Address")});wrap.appendChild(a);wrap.appendChild(el("div",{class:"help"},"Geo fields store {address, lat, lng}. Location button appears on request forms."));return wrap;}'
-        . 'else if(type==="attachment"){input=el("input",{type:"file",name:key});}'
-        . 'else {input=el("input",{type:"text",name:key,placeholder:(field.placeholder||"")});}'
-        . 'if(req && input) input.required=true; if(input) wrap.appendChild(input); return wrap;}'
-        . 'function previewTaskType(){var txt=document.getElementById("fields_json").value;var card=document.getElementById("preview_card");var out=document.getElementById("preview_fields");out.innerHTML="";'
-        . 'var obj=null;try{obj=JSON.parse(txt);}catch(e){card.style.display="block";out.innerHTML="<div class=\\"err\\">Invalid JSON.</div>";return;}'
-        . 'var fields=obj; if(obj && !Array.isArray(obj) && typeof obj==="object"){fields=obj.fields||[];}'
-        . 'if(!Array.isArray(fields)){card.style.display="block";out.innerHTML="<div class=\\"err\\">Expected array of fields.</div>";return;}'
-        . 'fields.forEach(f=>{if(f && typeof f==="object") out.appendChild(renderField(f));});'
-        . 'card.style.display="block";window.scrollTo({top:card.offsetTop-10,behavior:"smooth"});}'
-        . '</script>';
+    $html .= <<<'HTML'
+<script>
+function el(tag, attrs, text) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) { e.setAttribute(k, attrs[k]); });
+    if (text !== undefined) e.textContent = text;
+    return e;
+}
+function showPreviewMessage(out, cls, text) {
+    out.replaceChildren(el("div", {class: cls}, text));
+}
+function renderField(field) {
+    var key = field.key || "";
+    var type = field.type || "text";
+    var label = field.label || key;
+    var req = !!field.required;
+    var wrap = el("div");
+    wrap.style.marginBottom = "12px";
+    wrap.appendChild(el("label", null, label + (req ? " *" : "")));
+    var input = null;
+    if (type === "textarea") {
+        input = el("textarea", {name: key});
+    } else if (type === "select") {
+        input = el("select", {name: key});
+        (field.options || []).forEach(function (o) {
+            input.appendChild(el("option", {value: o.value || ""}, o.label || o.value || ""));
+        });
+    } else if (type === "boolean") {
+        var c = el("div");
+        var cb = el("input", {type: "checkbox", name: key, value: "1"});
+        cb.style.width = "auto";
+        cb.style.marginRight = "10px";
+        c.appendChild(cb);
+        c.appendChild(el("span", null, "Yes"));
+        wrap.appendChild(c);
+        return wrap;
+    } else if (type === "price") {
+        input = el("input", {type: "text", name: key, placeholder: field.placeholder || "e.g., 12.34"});
+    } else if (type === "number") {
+        input = el("input", {type: "number", name: key, step: "any", placeholder: field.placeholder || ""});
+    } else if (type === "date") {
+        input = el("input", {type: "date", name: key});
+    } else if (type === "time") {
+        input = el("input", {type: "time", name: key});
+    } else if (type === "datetime") {
+        input = el("input", {type: "datetime-local", name: key});
+    } else if (type === "geo") {
+        var a = el("input", {type: "text", name: key + "_address", placeholder: field.placeholder || "Address"});
+        wrap.appendChild(a);
+        wrap.appendChild(el("div", {class: "help"}, "Geo fields store address and coordinates. Location button appears on request forms."));
+        return wrap;
+    } else if (type === "attachment") {
+        input = el("input", {type: "file", name: key});
+    } else {
+        input = el("input", {type: "text", name: key, placeholder: field.placeholder || ""});
+    }
+    if (req && input) input.required = true;
+    if (input) wrap.appendChild(input);
+    return wrap;
+}
+function previewTaskType() {
+    var txt = document.getElementById("fields_json").value;
+    var card = document.getElementById("preview_card");
+    var out = document.getElementById("preview_fields");
+    out.replaceChildren();
+    var obj = null;
+    try {
+        obj = JSON.parse(txt);
+    } catch (e) {
+        card.style.display = "block";
+        showPreviewMessage(out, "err", "Invalid JSON.");
+        return;
+    }
+    var fields = obj;
+    if (obj && !Array.isArray(obj) && typeof obj === "object") fields = obj.fields || [];
+    if (!Array.isArray(fields)) {
+        card.style.display = "block";
+        showPreviewMessage(out, "err", "Expected array of fields.");
+        return;
+    }
+    fields.forEach(function (f) {
+        if (f && typeof f === "object") out.appendChild(renderField(f));
+    });
+    card.style.display = "block";
+    window.scrollTo({top: card.offsetTop - 10, behavior: "smooth"});
+}
+</script>
+HTML;
 
     return $html;
 }
@@ -933,8 +1295,8 @@ function action_create_task_type(): void {
     require_admin();
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require_csrf();
-        $name = trim((string)($_POST['name'] ?? ''));
-        $fieldsJson = trim((string)($_POST['fields_json'] ?? ''));
+        $name = input_string($_POST, 'name', 120);
+        $fieldsJson = input_string($_POST, 'fields_json', 20000);
         $errors = [];
         if ($name === '') $errors['name'] = 'Required.';
         if ($fieldsJson === '') $errors['fields_json'] = 'Required.';
@@ -973,7 +1335,7 @@ function action_create_task_type(): void {
 
 function action_edit_task_type(): void {
     require_admin();
-    $id = (int)($_GET['id'] ?? 0);
+    $id = input_int($_GET, 'id', 0, 0, 1000000000);
     $tt = get_task_type_by_id($id);
     if (!$tt) {
         http_response_code(404);
@@ -982,8 +1344,8 @@ function action_edit_task_type(): void {
     }
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require_csrf();
-        $name = trim((string)($_POST['name'] ?? ''));
-        $fieldsJson = trim((string)($_POST['fields_json'] ?? ''));
+        $name = input_string($_POST, 'name', 120);
+        $fieldsJson = input_string($_POST, 'fields_json', 20000);
         $errors = [];
         if ($name === '') $errors['name'] = 'Required.';
         if ($fieldsJson === '') $errors['fields_json'] = 'Required.';
@@ -1020,7 +1382,7 @@ function action_delete_task_type(): void {
         exit;
     }
     require_csrf();
-    $id = (int)($_GET['id'] ?? 0);
+    $id = input_int($_GET, 'id', 0, 0, 1000000000);
     $pdo = db();
     $stmt = $pdo->prepare("SELECT COUNT(*) AS c FROM requests WHERE task_type_id = ?");
     $stmt->execute([$id]);
@@ -1059,47 +1421,169 @@ function render_create_request_form(array $types, ?array $tt, array $values, arr
         . '<button class="btn btn-primary btnblock" type="submit">Post request</button>'
         . '</form></div>';
 
-    $html .= '<script>'
-        . 'const TASK_TYPES=' . json_encode($templates, JSON_UNESCAPED_SLASHES) . ';'
-        . 'const PREV_META=' . json_encode($meta, JSON_UNESCAPED_SLASHES) . ';'
-        . 'const ERRORS=' . json_encode($errors, JSON_UNESCAPED_SLASHES) . ';'
-        . 'function el(t, attrs, html){const e=document.createElement(t);if(attrs){Object.keys(attrs).forEach(k=>{if(attrs[k]!==null&&attrs[k]!==undefined)e.setAttribute(k,attrs[k]);});}if(html!==undefined)e.innerHTML=html;return e;}'
-        . 'function errorFor(key){return ERRORS && ERRORS[key] ? `<div class="err">${String(ERRORS[key])}</div>` : ``;}'
-        . 'function help(text){return text?`<div class="help">${text}</div>`:``;}'
-        . 'function renderGeo(field, value){const key=field.key;const wrap=el("div",null);wrap.style.marginTop="12px";wrap.appendChild(el("label",null,(field.label||key)+(field.required?" *":"")));
-             const a=el("input",{type:"text",name:key+"_address",placeholder:field.placeholder||"Address"});a.value=(value&&value.address)||"";if(field.required)a.required=true;wrap.appendChild(a);
-             const lat=el("input",{type:"hidden",name:key+"_lat"});lat.value=(value&&value.lat!=null)?String(value.lat):"";wrap.appendChild(lat);
-             const lng=el("input",{type:"hidden",name:key+"_lng"});lng.value=(value&&value.lng!=null)?String(value.lng):"";wrap.appendChild(lng);
-             const b=el("button",{type:"button",class:"btn",style:"margin-top:8px"},"Use my location");
-             b.onclick=()=>{if(!navigator.geolocation){alert("Geolocation not available.");return;}b.disabled=true;navigator.geolocation.getCurrentPosition((pos)=>{lat.value=String(pos.coords.latitude);lng.value=String(pos.coords.longitude);
-                if(!a.value){a.value=`${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;}
-                b.disabled=false;},(err)=>{alert("Location error: "+err.message);b.disabled=false;},{enableHighAccuracy:true,timeout:8000,maximumAge:15000});};
-             wrap.appendChild(b);wrap.insertAdjacentHTML("beforeend",help("Stored as {address, lat, lng}."));wrap.insertAdjacentHTML("beforeend",errorFor(key));return wrap;}'
-        . 'function renderField(field, value){const key=field.key||"";const type=field.type||"text";const wrap=el("div",null);wrap.style.marginTop="12px";
-             if(type==="geo") return renderGeo(field, value);
-             wrap.appendChild(el("label",null,(field.label||key)+(field.required?" *":"")));
-             let input=null;
-             if(type==="textarea"){input=el("textarea",{name:key,placeholder:field.placeholder||""});input.value=(value??"");}
-             else if(type==="select"){input=el("select",{name:key});(field.options||[]).forEach(o=>{const opt=el("option",{value:o.value||""},(o.label||o.value||""));input.appendChild(opt);});input.value=(value??"");}
-             else if(type==="boolean"){const c=el("div",null);const cb=el("input",{type:"checkbox",name:key,value:"1"});cb.style.width="auto";cb.style.marginRight="10px";cb.checked=String(value)==="1"||value===1||value===true; c.appendChild(cb);c.appendChild(el("span",null,"Yes"));wrap.appendChild(c);wrap.insertAdjacentHTML("beforeend",errorFor(key));return wrap;}
-             else if(type==="price"){input=el("input",{type:"text",name:key,placeholder:field.placeholder||"e.g., 12.34",inputmode:"decimal"}); if(typeof value==="number") input.value=(value/100).toFixed(2); else input.value=(value??"");}
-             else if(type==="number"){input=el("input",{type:"number",name:key,step:"any",placeholder:field.placeholder||""}); input.value=(value??"");}
-             else if(type==="date"){input=el("input",{type:"date",name:key}); input.value=(value??"");}
-             else if(type==="time"){input=el("input",{type:"time",name:key}); input.value=(value??"");}
-             else if(type==="datetime"){input=el("input",{type:"datetime-local",name:key}); input.value=(value??"");}
-             else if(type==="attachment"){input=el("input",{type:"file",name:key}); if(value){wrap.insertAdjacentHTML("beforeend",`<div class="help">Current file: ${String(value)}</div>`);} }
-             else if(type==="note"){input=el("textarea",{name:key,placeholder:field.placeholder||""}); input.value=(value??"");}
-             else if(type==="readonly"){input=el("input",{type:"text",name:key,readonly:"readonly"}); input.value=(value??"");}
-             else {input=el("input",{type:"text",name:key,placeholder:field.placeholder||""}); input.value=(value??"");}
-             if(field.required && input && type!=="attachment") input.required=true;
-             if(input) wrap.appendChild(input);
-             wrap.insertAdjacentHTML("beforeend",errorFor(key));
-             return wrap;}'
-        . 'function normalizeTemplate(t){if(!t) return {fields:[],summary_fields:[]};return {fields:t.fields||[],summary_fields:t.summary_fields||[]};}'
-        . 'function renderDynamic(){const sel=document.getElementById("task_type_id");const id=sel.value;const t=normalizeTemplate(TASK_TYPES[id]);const root=document.getElementById("dynamic_fields");root.innerHTML="";t.fields.forEach(f=>{if(!f||typeof f!=="object") return;const v=PREV_META[f.key];root.appendChild(renderField(f,v));});}'
-        . 'document.getElementById("task_type_id").addEventListener("change",()=>{renderDynamic();});renderDynamic();'
-        . 'document.getElementById("createForm").addEventListener("submit",(e)=>{const id=document.getElementById("task_type_id").value;const t=normalizeTemplate(TASK_TYPES[id]);const missing=[];t.fields.forEach(f=>{if(!f.required) return;if(f.type==="boolean") return;if(f.type==="geo"){const a=document.querySelector(`[name="${f.key}_address"]`);if(a && !a.value.trim()) missing.push(f.label||f.key);}else if(f.type==="attachment"){const inp=document.querySelector(`[name="${f.key}"]`);if(inp && !inp.value) missing.push(f.label||f.key);}else{const inp=document.querySelector(`[name="${f.key}"]`);if(inp && !String(inp.value||"").trim()) missing.push(f.label||f.key);}});if(missing.length){e.preventDefault();alert("Please fill required fields: " + missing.join(", "));}});'
-        . '</script>';
+    $script = <<<'HTML'
+<script>
+const TASK_TYPES=__TASK_TYPES__;
+const PREV_META=__PREV_META__;
+const ERRORS=__ERRORS__;
+function el(tag, attrs, text) {
+    const e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach((k) => {
+        if (attrs[k] !== null && attrs[k] !== undefined) e.setAttribute(k, attrs[k]);
+    });
+    if (text !== undefined) e.textContent = text;
+    return e;
+}
+function appendError(wrap, key) {
+    if (ERRORS && ERRORS[key]) wrap.appendChild(el("div", {class: "err"}, String(ERRORS[key])));
+}
+function appendHelp(wrap, text) {
+    if (text) wrap.appendChild(el("div", {class: "help"}, text));
+}
+function renderGeo(field, value) {
+    const key = field.key;
+    const wrap = el("div");
+    wrap.style.marginTop = "12px";
+    wrap.appendChild(el("label", null, (field.label || key) + (field.required ? " *" : "")));
+    const a = el("input", {type: "text", name: key + "_address", placeholder: field.placeholder || "Address"});
+    a.value = (value && value.address) || "";
+    if (field.required) a.required = true;
+    wrap.appendChild(a);
+    const lat = el("input", {type: "hidden", name: key + "_lat"});
+    lat.value = (value && value.lat != null) ? String(value.lat) : "";
+    wrap.appendChild(lat);
+    const lng = el("input", {type: "hidden", name: key + "_lng"});
+    lng.value = (value && value.lng != null) ? String(value.lng) : "";
+    wrap.appendChild(lng);
+    const b = el("button", {type: "button", class: "btn", style: "margin-top:8px"}, "Use my location");
+    b.onclick = () => {
+        if (!navigator.geolocation) {
+            alert("Geolocation not available.");
+            return;
+        }
+        b.disabled = true;
+        navigator.geolocation.getCurrentPosition((pos) => {
+            lat.value = String(pos.coords.latitude);
+            lng.value = String(pos.coords.longitude);
+            if (!a.value) a.value = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+            b.disabled = false;
+        }, (err) => {
+            alert("Location error: " + err.message);
+            b.disabled = false;
+        }, {enableHighAccuracy: true, timeout: 8000, maximumAge: 15000});
+    };
+    wrap.appendChild(b);
+    appendHelp(wrap, "Stored as address and coordinates.");
+    appendError(wrap, key);
+    return wrap;
+}
+function renderField(field, value) {
+    const key = field.key || "";
+    const type = field.type || "text";
+    const wrap = el("div");
+    wrap.style.marginTop = "12px";
+    if (type === "geo") return renderGeo(field, value);
+    wrap.appendChild(el("label", null, (field.label || key) + (field.required ? " *" : "")));
+    let input = null;
+    if (type === "textarea") {
+        input = el("textarea", {name: key, placeholder: field.placeholder || ""});
+        input.value = value ?? "";
+    } else if (type === "select") {
+        input = el("select", {name: key});
+        (field.options || []).forEach((o) => input.appendChild(el("option", {value: o.value || ""}, o.label || o.value || "")));
+        input.value = value ?? "";
+    } else if (type === "boolean") {
+        const c = el("div");
+        const cb = el("input", {type: "checkbox", name: key, value: "1"});
+        cb.style.width = "auto";
+        cb.style.marginRight = "10px";
+        cb.checked = String(value) === "1" || value === 1 || value === true;
+        c.appendChild(cb);
+        c.appendChild(el("span", null, "Yes"));
+        wrap.appendChild(c);
+        appendError(wrap, key);
+        return wrap;
+    } else if (type === "price") {
+        input = el("input", {type: "text", name: key, placeholder: field.placeholder || "e.g., 12.34", inputmode: "decimal"});
+        input.value = (typeof value === "number") ? (value / 100).toFixed(2) : (value ?? "");
+    } else if (type === "number") {
+        input = el("input", {type: "number", name: key, step: "any", placeholder: field.placeholder || ""});
+        input.value = value ?? "";
+    } else if (type === "date") {
+        input = el("input", {type: "date", name: key});
+        input.value = value ?? "";
+    } else if (type === "time") {
+        input = el("input", {type: "time", name: key});
+        input.value = value ?? "";
+    } else if (type === "datetime") {
+        input = el("input", {type: "datetime-local", name: key});
+        input.value = value ?? "";
+    } else if (type === "attachment") {
+        input = el("input", {type: "file", name: key});
+        if (value) appendHelp(wrap, "Current file: " + String(value));
+    } else if (type === "note") {
+        input = el("textarea", {name: key, placeholder: field.placeholder || ""});
+        input.value = value ?? "";
+    } else if (type === "readonly") {
+        input = el("input", {type: "text", name: key, readonly: "readonly"});
+        input.value = value ?? "";
+    } else {
+        input = el("input", {type: "text", name: key, placeholder: field.placeholder || ""});
+        input.value = value ?? "";
+    }
+    if (field.required && input && type !== "attachment") input.required = true;
+    if (input) wrap.appendChild(input);
+    appendError(wrap, key);
+    return wrap;
+}
+function normalizeTemplate(t) {
+    if (!t) return {fields: [], summary_fields: []};
+    return {fields: t.fields || [], summary_fields: t.summary_fields || []};
+}
+function renderDynamic() {
+    const sel = document.getElementById("task_type_id");
+    const id = sel.value;
+    const t = normalizeTemplate(TASK_TYPES[id]);
+    const root = document.getElementById("dynamic_fields");
+    root.replaceChildren();
+    t.fields.forEach((f) => {
+        if (!f || typeof f !== "object") return;
+        root.appendChild(renderField(f, PREV_META[f.key]));
+    });
+}
+document.getElementById("task_type_id").addEventListener("change", () => renderDynamic());
+renderDynamic();
+document.getElementById("createForm").addEventListener("submit", (e) => {
+    const form = document.getElementById("createForm");
+    const id = document.getElementById("task_type_id").value;
+    const t = normalizeTemplate(TASK_TYPES[id]);
+    const missing = [];
+    t.fields.forEach((f) => {
+        if (!f.required || f.type === "boolean") return;
+        const label = f.label || f.key;
+        if (f.type === "geo") {
+            const a = form.elements[f.key + "_address"];
+            if (a && !String(a.value || "").trim()) missing.push(label);
+        } else if (f.type === "attachment") {
+            const inp = form.elements[f.key];
+            if (inp && !inp.value && !PREV_META[f.key]) missing.push(label);
+        } else {
+            const inp = form.elements[f.key];
+            if (inp && !String(inp.value || "").trim()) missing.push(label);
+        }
+    });
+    if (missing.length) {
+        e.preventDefault();
+        alert("Please fill required fields: " + missing.join(", "));
+    }
+});
+</script>
+HTML;
+    $html .= strtr($script, [
+        '__TASK_TYPES__' => json_for_html_script($templates),
+        '__PREV_META__' => json_for_html_script($meta),
+        '__ERRORS__' => json_for_html_script($errors),
+    ]);
 
     return $html;
 }
@@ -1109,28 +1593,29 @@ function action_create_request(): void {
     $u = require_login();
     $types = get_task_types();
 
-    $typeId = (int)($_GET['task_type_id'] ?? ($_POST['task_type_id'] ?? 0));
+    $typeId = input_int($_GET, 'task_type_id', input_int($_POST, 'task_type_id', 0, 0, 1000000000), 0, 1000000000);
     $tt = $typeId ? get_task_type_by_id($typeId) : null;
     if (!$tt && count($types) > 0) $tt = get_task_type_by_id((int)$types[0]['id']);
 
     $values = [
         'task_type_id' => $tt ? (int)$tt['id'] : 0,
-        'title' => (string)($_POST['title'] ?? ''),
-        'description' => (string)($_POST['description'] ?? ''),
+        'title' => input_string($_POST, 'title', 180),
+        'description' => input_string($_POST, 'description', 5000),
     ];
     $errors = [];
     $meta = [];
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         require_csrf();
-        $typeId = (int)($_POST['task_type_id'] ?? 0);
+        enforce_critical_rate_limit('create_request', (int)$u['id']);
+        $typeId = input_int($_POST, 'task_type_id', 0, 0, 1000000000);
         $tt = $typeId ? get_task_type_by_id($typeId) : null;
         if (!$tt) {
             $errors['task_type_id'] = 'Choose a task type.';
         }
         $values['task_type_id'] = $typeId;
-        $values['title'] = trim((string)($_POST['title'] ?? ''));
-        $values['description'] = trim((string)($_POST['description'] ?? ''));
+        $values['title'] = input_string($_POST, 'title', 180);
+        $values['description'] = input_string($_POST, 'description', 5000);
         if ($values['title'] === '') $errors['title'] = 'Required.';
         if ($values['description'] === '') $errors['description'] = 'Required.';
 
@@ -1177,28 +1662,28 @@ function action_create_request(): void {
     render_layout('Create Request', render_create_request_form($types, $tt, $values, $meta, $errors));
 }
 
-function fetch_requests_for_list(?string $status, ?int $taskTypeId): array {
+function fetch_requests_for_list(array $u, string $status, int $taskTypeId): array {
     $pdo = db();
     $sql = "SELECT r.*, tt.name AS task_type_name, tt.fields_json AS task_type_fields_json,
         u1.display_name AS requester_name, u2.display_name AS runner_name
         FROM requests r
         JOIN task_types tt ON tt.id = r.task_type_id
         JOIN users u1 ON u1.id = r.requester_id
-        LEFT JOIN users u2 ON u2.id = r.runner_id";
-    $conds = [];
-    $params = [];
-    if ($status && $status !== 'all') {
-        $conds[] = 'r.status = ?';
-        $params[] = $status;
-    }
-    if ($taskTypeId) {
-        $conds[] = 'r.task_type_id = ?';
-        $params[] = $taskTypeId;
-    }
-    if ($conds) $sql .= ' WHERE ' . implode(' AND ', $conds);
-    $sql .= ' ORDER BY r.created_at DESC LIMIT 200';
+        LEFT JOIN users u2 ON u2.id = r.runner_id
+        WHERE (:is_admin = 1 OR r.status = 'new' OR r.requester_id = :uid1 OR r.runner_id = :uid2)
+          AND (:status_filter = 'all' OR r.status = :status_value)
+          AND (:task_type_id = 0 OR r.task_type_id = :task_type_id_match)
+        ORDER BY r.created_at DESC LIMIT 200";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute([
+        ':is_admin' => (int)$u['is_admin'] === 1 ? 1 : 0,
+        ':uid1' => (int)$u['id'],
+        ':uid2' => (int)$u['id'],
+        ':status_filter' => $status,
+        ':status_value' => $status,
+        ':task_type_id' => $taskTypeId,
+        ':task_type_id_match' => $taskTypeId,
+    ]);
     return $stmt->fetchAll();
 }
 
@@ -1210,12 +1695,14 @@ function action_list_requests(): void {
         return;
     }
 
-    $status = (string)($_GET['status'] ?? 'new');
-    $taskTypeId = (int)($_GET['task_type_id'] ?? 0);
-    $nearby = (string)($_GET['nearby'] ?? '');
-    $myLat = isset($_GET['lat']) && $_GET['lat'] !== '' ? (float)$_GET['lat'] : null;
-    $myLng = isset($_GET['lng']) && $_GET['lng'] !== '' ? (float)$_GET['lng'] : null;
-    $radiusKm = isset($_GET['km']) ? max(1.0, (float)$_GET['km']) : 10.0;
+    $status = validate_status_filter(input_string($_GET, 'status', 30) ?: 'new');
+    $taskTypeId = input_int($_GET, 'task_type_id', 0, 0, 1000000000);
+    $nearby = input_string($_GET, 'nearby', 1);
+    $myLat = isset($_GET['lat']) && is_numeric($_GET['lat']) ? max(-90.0, min(90.0, (float)$_GET['lat'])) : null;
+    $myLng = isset($_GET['lng']) && is_numeric($_GET['lng']) ? max(-180.0, min(180.0, (float)$_GET['lng'])) : null;
+    $latValue = $myLat === null ? '' : (string)$myLat;
+    $lngValue = $myLng === null ? '' : (string)$myLng;
+    $radiusKm = input_float($_GET, 'km', 10.0, 1.0, 200.0);
 
     $types = get_task_types();
     $typeOptions = '<option value="0">All task types</option>';
@@ -1224,7 +1711,7 @@ function action_list_requests(): void {
         $typeOptions .= '<option value="' . (int)$t['id'] . '"' . $sel . '>' . h($t['name']) . '</option>';
     }
 
-    $rows = fetch_requests_for_list($status, $taskTypeId);
+    $rows = fetch_requests_for_list($u, $status, $taskTypeId);
     $items = '';
 
     foreach ($rows as $r) {
@@ -1269,15 +1756,7 @@ function action_list_requests(): void {
             . '</div>';
     }
 
-    $statusOptions = [
-        'new' => 'New',
-        'accepted' => 'Accepted',
-        'picked_up' => 'Picked up',
-        'payment_confirmed' => 'Payment confirmed',
-        'delivered' => 'Delivered',
-        'completed' => 'Completed',
-        'all' => 'All',
-    ];
+    $statusOptions = status_options();
     $statusSel = '';
     foreach ($statusOptions as $k => $label) {
         $sel = ($status === $k) ? ' selected' : '';
@@ -1296,8 +1775,8 @@ function action_list_requests(): void {
         . '<select name="nearby" id="nearby"><option value="">Off</option><option value="1"' . ($nearby === '1' ? ' selected' : '') . '>Within distance</option></select>'
         . '<div class="help">Uses the first geo field in the schema (if present). No tracking.</div></div>'
         . '<div><label>Distance (km)</label><input name="km" inputmode="decimal" value="' . h((string)$radiusKm) . '"></div>'
-        . '<input type="hidden" name="lat" id="lat" value="' . h(isset($_GET['lat']) ? (string)$_GET['lat'] : '') . '">' 
-        . '<input type="hidden" name="lng" id="lng" value="' . h(isset($_GET['lng']) ? (string)$_GET['lng'] : '') . '">' 
+        . '<input type="hidden" name="lat" id="lat" value="' . h($latValue) . '">'
+        . '<input type="hidden" name="lng" id="lng" value="' . h($lngValue) . '">'
         . '<button class="btn btnblock" type="submit">Filter</button>'
         . '</form>'
         . '<div style="margin-top:10px"><label style="display:flex;gap:10px;align-items:center;font-weight:700"><input id="autorefresh" type="checkbox" style="width:auto"> Auto-refresh (15s)</label></div>'
@@ -1336,13 +1815,14 @@ function fetch_request_full(int $id): ?array {
 function action_get_request(): void {
     global $CFG;
     $u = require_login();
-    $id = (int)($_GET['id'] ?? 0);
+    $id = input_int($_GET, 'id', 0, 0, 1000000000);
     $r = fetch_request_full($id);
     if (!$r) {
         http_response_code(404);
         render_layout('Not found', '<div class="card">Request not found.</div>');
         return;
     }
+    require_request_view($u, $r);
     $tt = normalize_task_type_row([
         'id' => $r['task_type_id'],
         'name' => $r['task_type_name'],
@@ -1401,7 +1881,7 @@ function action_get_request(): void {
         } elseif ($type === 'attachment') {
             if (is_string($v) && $v !== '') {
                 $fn = basename($v);
-                $url = 'uploads/' . rawurlencode($fn);
+                $url = '?action=download_attachment&id=' . (int)$r['id'] . '&field=' . rawurlencode($k);
                 $render = '<a href="' . h($url) . '" target="_blank" rel="noopener">' . h($fn) . '</a>';
             }
         } elseif ($type === 'select') {
@@ -1419,6 +1899,77 @@ function action_get_request(): void {
     $rating = render_request_rating_block($u, $r);
 
     render_layout('Request', $card . $actions . $desc . $metaTable . $eventLog . $rating);
+}
+
+function action_download_attachment(): void {
+    global $CFG;
+    $u = require_login();
+    $id = input_int($_GET, 'id', 0, 0, 1000000000);
+    $field = input_string($_GET, 'field', 64);
+    if (!preg_match('/^[A-Za-z][A-Za-z0-9_]{0,63}$/', $field)) {
+        http_response_code(400);
+        echo 'Bad request';
+        return;
+    }
+
+    $r = fetch_request_full($id);
+    if (!$r) {
+        http_response_code(404);
+        echo 'Not found';
+        return;
+    }
+    require_request_view($u, $r);
+
+    $tt = normalize_task_type_row([
+        'id' => $r['task_type_id'],
+        'name' => $r['task_type_name'],
+        'fields_json' => $r['task_type_fields_json'],
+        'created_at' => '',
+    ]);
+    $isAttachmentField = false;
+    foreach ($tt['fields'] as $f) {
+        if (is_array($f) && (string)($f['key'] ?? '') === $field && (string)($f['type'] ?? '') === 'attachment') {
+            $isAttachmentField = true;
+            break;
+        }
+    }
+    if (!$isAttachmentField) {
+        http_response_code(404);
+        echo 'Not found';
+        return;
+    }
+
+    $meta = json_decode((string)$r['metadata'], true);
+    if (!is_array($meta)) $meta = [];
+    $fn = basename((string)($meta[$field] ?? ''));
+    if ($fn === '' || preg_match('/[\/\\\\]/', $fn)) {
+        http_response_code(404);
+        echo 'Not found';
+        return;
+    }
+
+    $base = realpath((string)$CFG['upload_dir']);
+    $path = realpath((string)$CFG['upload_dir'] . DIRECTORY_SEPARATOR . $fn);
+    if (!$base || !$path || !str_starts_with($path, $base . DIRECTORY_SEPARATOR) || !is_file($path)) {
+        http_response_code(404);
+        echo 'Not found';
+        return;
+    }
+
+    $mime = 'application/octet-stream';
+    if (function_exists('finfo_open')) {
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        if ($finfo) {
+            $detected = (string)finfo_file($finfo, $path);
+            finfo_close($finfo);
+            if ($detected !== '') $mime = $detected;
+        }
+    }
+    header('Content-Type: ' . $mime);
+    header('Content-Disposition: attachment; filename="' . addcslashes($fn, "\"\\") . '"');
+    header('X-Content-Type-Options: nosniff');
+    readfile($path);
+    exit;
 }
 
 function render_request_actions(array $u, array $r): string {
@@ -1459,12 +2010,14 @@ function render_request_actions(array $u, array $r): string {
             . '</form>';
     }
 
-    $buttons .= '<form method="post" action="?action=post_event&id=' . (int)$r['id'] . '" class="stack" style="margin-top:10px">'
-        . '<input type="hidden" name="csrf" value="' . h(csrf_token()) . '">'
-        . '<label>Post an update</label>'
-        . '<textarea name="note" placeholder="Short note (no sensitive payment details)"></textarea>'
-        . '<button class="btn btnblock" type="submit">Post</button>'
-        . '</form>';
+    if (can_comment_request($u, $r)) {
+        $buttons .= '<form method="post" action="?action=post_event&id=' . (int)$r['id'] . '" class="stack" style="margin-top:10px">'
+            . '<input type="hidden" name="csrf" value="' . h(csrf_token()) . '">'
+            . '<label>Post an update</label>'
+            . '<textarea name="note" placeholder="Short note (no sensitive payment details)"></textarea>'
+            . '<button class="btn btnblock" type="submit">Post</button>'
+            . '</form>';
+    }
 
     return '<div class="card"><div class="title">Actions</div><div class="stack" style="margin-top:10px">' . $buttons . '</div></div>';
 }
@@ -1564,18 +2117,23 @@ function action_post_event(): void {
         exit;
     }
     require_csrf();
-    $id = (int)($_GET['id'] ?? 0);
+    enforce_critical_rate_limit('post_event', (int)$u['id']);
+    $id = input_int($_GET, 'id', 0, 0, 1000000000);
     $r = fetch_request_full($id);
     if (!$r) {
         flash_set('error', 'Request not found.');
         redirect_to('?action=list_requests');
     }
-    $note = trim((string)($_POST['note'] ?? ''));
+    if (!can_comment_request($u, $r)) {
+        http_response_code(403);
+        render_layout('Forbidden', '<div class="card">Only participants can post updates on this request.</div>');
+        return;
+    }
+    $note = input_string($_POST, 'note', 1000);
     if ($note === '') {
         flash_set('error', 'Note cannot be empty.');
         redirect_to('?action=get_request&id=' . $id);
     }
-    if (strlen($note) > 1000) $note = substr($note, 0, 1000);
     add_event($id, (int)$u['id'], 'comment', $note);
     audit_log((int)$u['id'], 'post_event', 'request', $id);
     flash_set('ok', 'Posted.');
@@ -1590,7 +2148,8 @@ function action_accept_request(): void {
         exit;
     }
     require_csrf();
-    $id = (int)($_GET['id'] ?? 0);
+    enforce_critical_rate_limit('accept_request', (int)$u['id']);
+    $id = input_int($_GET, 'id', 0, 0, 1000000000);
     $pdo = db();
 
     // Race protection: only one runner can accept. Transaction + conditional UPDATE.
@@ -1623,7 +2182,8 @@ function action_mark_picked_up(): void {
         exit;
     }
     require_csrf();
-    $id = (int)($_GET['id'] ?? 0);
+    enforce_critical_rate_limit('mark_picked_up', (int)$u['id']);
+    $id = input_int($_GET, 'id', 0, 0, 1000000000);
     $pdo = db();
     $stmt = $pdo->prepare("UPDATE requests SET status='picked_up', updated_at=? WHERE id=? AND status='accepted' AND runner_id=?");
     $stmt->execute([now_iso(), $id, (int)$u['id']]);
@@ -1645,7 +2205,8 @@ function action_confirm_payment(): void {
         exit;
     }
     require_csrf();
-    $id = (int)($_GET['id'] ?? 0);
+    enforce_critical_rate_limit('confirm_payment', (int)$u['id']);
+    $id = input_int($_GET, 'id', 0, 0, 1000000000);
     $pdo = db();
     $stmt = $pdo->prepare("UPDATE requests SET status='payment_confirmed', updated_at=? WHERE id=? AND status IN ('accepted','picked_up') AND requester_id=?");
     $stmt->execute([now_iso(), $id, (int)$u['id']]);
@@ -1667,7 +2228,8 @@ function action_mark_delivered(): void {
         exit;
     }
     require_csrf();
-    $id = (int)($_GET['id'] ?? 0);
+    enforce_critical_rate_limit('mark_delivered', (int)$u['id']);
+    $id = input_int($_GET, 'id', 0, 0, 1000000000);
     $pdo = db();
 
     // Single endpoint for both sides:
@@ -1703,7 +2265,8 @@ function action_leave_rating(): void {
         exit;
     }
     require_csrf();
-    $id = (int)($_GET['id'] ?? 0);
+    enforce_critical_rate_limit('leave_rating', (int)$u['id']);
+    $id = input_int($_GET, 'id', 0, 0, 1000000000);
     $r = fetch_request_full($id);
     if (!$r) {
         flash_set('error', 'Request not found.');
@@ -1728,14 +2291,12 @@ function action_leave_rating(): void {
         redirect_to('?action=get_request&id=' . $id);
     }
 
-    $score = (int)($_POST['score'] ?? 0);
-    $note = trim((string)($_POST['note'] ?? ''));
+    $score = input_int($_POST, 'score', 0, 0, 5);
+    $note = input_string($_POST, 'note', 800);
     if ($score < 1 || $score > 5) {
         flash_set('error', 'Select a score.');
         redirect_to('?action=get_request&id=' . $id);
     }
-    if (strlen($note) > 800) $note = substr($note, 0, 800);
-
     $pdo = db();
     $stmt = $pdo->prepare("SELECT COUNT(*) AS c FROM ratings WHERE request_id=? AND rater_id=?");
     $stmt->execute([$id, $uid]);
@@ -1927,11 +2488,12 @@ function action_export_csv(): void {
     $u = require_login();
     $isAdmin = ((int)$u['is_admin'] === 1);
 
-    $download = (string)($_GET['download'] ?? '') === '1';
-    $scope = (string)($_GET['scope'] ?? ($isAdmin ? 'all' : 'mine'));
+    $download = input_string($_GET, 'download', 1) === '1';
+    $scope = input_string($_GET, 'scope', 10) ?: ($isAdmin ? 'all' : 'mine');
+    if (!in_array($scope, ['all', 'mine'], true)) $scope = 'mine';
     if (!$isAdmin) $scope = 'mine';
 
-    $piiRequested = (string)($_GET['pii'] ?? '') === '1';
+    $piiRequested = input_string($_GET, 'pii', 1) === '1';
     $includePii = $isAdmin && $CFG['export_pii'] && $piiRequested;
 
     if (!$download) {
@@ -1955,35 +2517,24 @@ function action_export_csv(): void {
     }
 
     $pdo = db();
-    $cols = [
-        'r.id',
-        'r.requester_id',
-        'r.runner_id',
-        'tt.name AS task_type',
-        'r.status',
-        'r.price_cents',
-        'r.fee_cents',
-        'r.created_at',
-        'r.updated_at',
-    ];
-    if ($includePii) {
-        $cols[] = 'u1.email AS requester_email';
-        $cols[] = 'u2.email AS runner_email';
-    }
-
-    $sql = 'SELECT ' . implode(', ', $cols) . ' FROM requests r'
-        . ' JOIN task_types tt ON tt.id = r.task_type_id'
-        . ' JOIN users u1 ON u1.id = r.requester_id'
-        . ' LEFT JOIN users u2 ON u2.id = r.runner_id';
-    $params = [];
-    if ($scope === 'mine') {
-        $sql .= ' WHERE (r.requester_id = ? OR r.runner_id = ?)';
-        $params[] = (int)$u['id'];
-        $params[] = (int)$u['id'];
-    }
-    $sql .= ' ORDER BY r.created_at DESC LIMIT 5000';
+    $sql = "SELECT r.id, r.requester_id, r.runner_id, tt.name AS task_type, r.status,
+        r.price_cents, r.fee_cents, r.created_at, r.updated_at,
+        CASE WHEN :include_pii1 = 1 THEN u1.email ELSE '' END AS requester_email,
+        CASE WHEN :include_pii2 = 1 THEN u2.email ELSE '' END AS runner_email
+        FROM requests r
+        JOIN task_types tt ON tt.id = r.task_type_id
+        JOIN users u1 ON u1.id = r.requester_id
+        LEFT JOIN users u2 ON u2.id = r.runner_id
+        WHERE (:scope_all = 1 OR r.requester_id = :uid1 OR r.runner_id = :uid2)
+        ORDER BY r.created_at DESC LIMIT 5000";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute([
+        ':include_pii1' => $includePii ? 1 : 0,
+        ':include_pii2' => $includePii ? 1 : 0,
+        ':scope_all' => $scope === 'all' ? 1 : 0,
+        ':uid1' => (int)$u['id'],
+        ':uid2' => (int)$u['id'],
+    ]);
 
     audit_log((int)$u['id'], 'export_csv', 'system', null, ['scope' => $scope, 'include_pii' => $includePii]);
 
@@ -2023,7 +2574,7 @@ function action_export_csv(): void {
 function action_cron_cleanup(): void {
     global $CFG;
 
-    $token = (string)($_GET['token'] ?? '');
+    $token = input_string($_GET, 'token', 200);
     $authorized = false;
     if (PHP_SAPI === 'cli') {
         $authorized = true;
@@ -2068,8 +2619,13 @@ function action_cron_cleanup(): void {
 }
 
 // --- Router ---
+if (PHP_SAPI === 'cli' && !empty($argv)) {
+    $cliParams = [];
+    parse_str(implode('&', array_slice($argv, 1)), $cliParams);
+    $_GET = array_merge($cliParams, $_GET);
+}
 db();
-$action = (string)($_GET['action'] ?? 'list_requests');
+$action = input_string($_GET, 'action', 40) ?: 'list_requests';
 switch ($action) {
     case 'register': action_register(); break;
     case 'login': action_login(); break;
@@ -2083,6 +2639,7 @@ switch ($action) {
     case 'create_request': action_create_request(); break;
     case 'list_requests': action_list_requests(); break;
     case 'get_request': action_get_request(); break;
+    case 'download_attachment': action_download_attachment(); break;
 
     case 'accept_request': action_accept_request(); break;
     case 'mark_picked_up': action_mark_picked_up(); break;

@@ -1,6 +1,0 @@
-[13-May-2026 17:20:32 UTC] PHP Fatal error:  Uncaught PDOException: could not find driver in C:\Users\tanzir\Desktop\litegig\litegig.php:105
-Stack trace:
-#0 C:\Users\tanzir\Desktop\litegig\litegig.php(105): PDO->__construct('sqlite:C:\\Users...', NULL, Object(SensitiveParameterValue), Array)
-#1 C:\Users\tanzir\Desktop\litegig\litegig.php(2057): db()
-#2 {main}
-  thrown in C:\Users\tanzir\Desktop\litegig\litegig.php on line 105
