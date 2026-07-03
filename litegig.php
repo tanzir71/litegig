@@ -919,11 +919,12 @@ function render_layout(string $title, string $content): void {
     }
 
     $meta = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">';
+    $favicon = '<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23111111%27/%3E%3Ctext x=%2732%27 y=%2739%27 font-size=%2721%27 text-anchor=%27middle%27 font-family=%27Arial%27 font-weight=%27700%27 fill=%27white%27%3ELG%3C/text%3E%3C/svg%3E">';
     $inter = '<link rel="preconnect" href="https://fonts.googleapis.com">'
         . '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>'
         . '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">';
 
-    echo '<!doctype html><html lang="en"><head><meta charset="utf-8">' . $meta . '<title>' . h($title) . ' · ' . h($appName) . '</title>' . $inter;
+    echo '<!doctype html><html lang="en"><head><meta charset="utf-8">' . $meta . '<title>' . h($title) . ' · ' . h($appName) . '</title>' . $favicon . $inter;
     echo '<style>';
     echo ':root{--accent:' . h($accent) . ';--bg:#fff;--fg:#111;--muted:#666;--line:#e6e6e6;--card:#fafafa;--danger:#b00020;--ok:#0b6b34;}'
         . 'html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;}'
@@ -969,7 +970,14 @@ function render_layout(string $title, string $content): void {
         . '.flash.error{border-color:rgba(176,0,32,.25);background:rgba(176,0,32,.05);}'
         . '.flash.ok{border-color:rgba(11,107,52,.25);background:rgba(11,107,52,.06);}'
         . '.split{display:grid;grid-template-columns:1fr;gap:10px;}'
+        . '.statepath{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;margin-top:12px;}'
+        . '.statepoint{border:1px solid var(--line);border-radius:8px;background:#fff;min-height:58px;padding:8px;}'
+        . '.statepoint.done{border-color:rgba(11,107,52,.24);background:rgba(11,107,52,.06);}'
+        . '.statepoint.current{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);}'
+        . '.statepoint small{display:block;color:var(--muted);font-size:10px;font-weight:900;text-transform:uppercase;}'
+        . '.statepoint span{display:block;margin-top:4px;font-size:12px;font-weight:800;}'
         . '@media(min-width:720px){.grid{grid-template-columns:1fr 1fr;}.split{grid-template-columns:1fr 1fr;}}'
+        . '@media(max-width:720px){.statepath{grid-template-columns:1fr;}}'
         . '</style>';
     echo '</head><body><div class="wrap">';
     echo '<div class="top"><div class="brand"><a href="?">' . h($appName) . '</a></div><div class="nav">' . $nav . '</div></div>';
@@ -980,7 +988,7 @@ function render_layout(string $title, string $content): void {
     }
 
     echo $content;
-    echo '<div class="foot">Payments are peer-to-peer. LiteGig only records manual confirmations; it does not process or store payment details. <a href="SECURITY.md">Security</a> · <a href="SETUP.md">Docs</a></div>';
+    echo '<div class="foot">Payments are peer-to-peer. LiteGig only records manual confirmations; it does not process or store payment details. <a href="docs.html#security">Security</a> · <a href="docs.html">Docs</a></div>';
     echo '</div></body></html>';
 }
 
@@ -1662,7 +1670,7 @@ function action_create_request(): void {
     render_layout('Create Request', render_create_request_form($types, $tt, $values, $meta, $errors));
 }
 
-function fetch_requests_for_list(array $u, string $status, int $taskTypeId): array {
+function fetch_requests_for_list(array $u, string $status, int $taskTypeId, string $query): array {
     $pdo = db();
     $sql = "SELECT r.*, tt.name AS task_type_name, tt.fields_json AS task_type_fields_json,
         u1.display_name AS requester_name, u2.display_name AS runner_name
@@ -1673,7 +1681,14 @@ function fetch_requests_for_list(array $u, string $status, int $taskTypeId): arr
         WHERE (:is_admin = 1 OR r.status = 'new' OR r.requester_id = :uid1 OR r.runner_id = :uid2)
           AND (:status_filter = 'all' OR r.status = :status_value)
           AND (:task_type_id = 0 OR r.task_type_id = :task_type_id_match)
+          AND (:q_empty = 1
+            OR r.title LIKE :q_title
+            OR r.description LIKE :q_description
+            OR r.metadata LIKE :q_metadata
+            OR u1.display_name LIKE :q_requester
+            OR COALESCE(u2.display_name, '') LIKE :q_runner)
         ORDER BY r.created_at DESC LIMIT 200";
+    $like = '%' . $query . '%';
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
         ':is_admin' => (int)$u['is_admin'] === 1 ? 1 : 0,
@@ -1683,6 +1698,12 @@ function fetch_requests_for_list(array $u, string $status, int $taskTypeId): arr
         ':status_value' => $status,
         ':task_type_id' => $taskTypeId,
         ':task_type_id_match' => $taskTypeId,
+        ':q_empty' => $query === '' ? 1 : 0,
+        ':q_title' => $like,
+        ':q_description' => $like,
+        ':q_metadata' => $like,
+        ':q_requester' => $like,
+        ':q_runner' => $like,
     ]);
     return $stmt->fetchAll();
 }
@@ -1697,6 +1718,7 @@ function action_list_requests(): void {
 
     $status = validate_status_filter(input_string($_GET, 'status', 30) ?: 'new');
     $taskTypeId = input_int($_GET, 'task_type_id', 0, 0, 1000000000);
+    $query = input_string($_GET, 'q', 120);
     $nearby = input_string($_GET, 'nearby', 1);
     $myLat = isset($_GET['lat']) && is_numeric($_GET['lat']) ? max(-90.0, min(90.0, (float)$_GET['lat'])) : null;
     $myLng = isset($_GET['lng']) && is_numeric($_GET['lng']) ? max(-180.0, min(180.0, (float)$_GET['lng'])) : null;
@@ -1711,7 +1733,7 @@ function action_list_requests(): void {
         $typeOptions .= '<option value="' . (int)$t['id'] . '"' . $sel . '>' . h($t['name']) . '</option>';
     }
 
-    $rows = fetch_requests_for_list($u, $status, $taskTypeId);
+    $rows = fetch_requests_for_list($u, $status, $taskTypeId, $query);
     $items = '';
 
     foreach ($rows as $r) {
@@ -1765,10 +1787,11 @@ function action_list_requests(): void {
 
     $html = '<div class="card"><div class="row"><div>'
         . '<div class="title">Requests</div>'
-        . '<div class="sub">List rows show only essentials: title, task type, key fields, price, created.</div>'
+        . '<div class="sub">Search and filter the operational queue by status, task type, nearby distance, or request details.</div>'
         . '</div><div><a class="btn btn-primary" href="?action=create_request">Create</a></div></div>'
         . '<form method="get" action="" class="grid" style="margin-top:12px">'
         . '<input type="hidden" name="action" value="list_requests">'
+        . '<div><label>Search</label><input name="q" value="' . h($query) . '" placeholder="Title, place, note, requester"></div>'
         . '<div><label>Status</label><select name="status">' . $statusSel . '</select></div>'
         . '<div><label>Task type</label><select name="task_type_id">' . $typeOptions . '</select></div>'
         . '<div><label>Nearby</label>'
@@ -1894,11 +1917,12 @@ function action_get_request(): void {
     }
     $metaTable = '<div class="card"><div class="title">Details</div><table class="table" style="margin-top:10px">' . $metaRows . '</table></div>';
 
+    $statePanel = render_request_state_panel($u, $r);
     $actions = render_request_actions($u, $r);
     $eventLog = render_request_events($id);
     $rating = render_request_rating_block($u, $r);
 
-    render_layout('Request', $card . $actions . $desc . $metaTable . $eventLog . $rating);
+    render_layout('Request', $card . $statePanel . $actions . $desc . $metaTable . $eventLog . $rating);
 }
 
 function action_download_attachment(): void {
@@ -1970,6 +1994,97 @@ function action_download_attachment(): void {
     header('X-Content-Type-Options: nosniff');
     readfile($path);
     exit;
+}
+
+function request_status_steps(): array {
+    return [
+        'new' => 'Posted',
+        'accepted' => 'Accepted',
+        'picked_up' => 'Picked up',
+        'payment_confirmed' => 'Paid',
+        'delivered' => 'Delivered',
+        'completed' => 'Complete',
+    ];
+}
+
+function request_next_action_hint(array $u, array $r): string {
+    $uid = (int)$u['id'];
+    $isRequester = $uid === (int)$r['requester_id'];
+    $isRunner = $r['runner_id'] !== null && $uid === (int)$r['runner_id'];
+    $status = (string)$r['status'];
+
+    if ($status === 'new') {
+        return $isRequester ? 'Waiting for a runner to accept.' : 'Accept this request to take custody.';
+    }
+    if ($status === 'accepted') {
+        if ($isRunner) return 'Mark picked up when you have the item.';
+        if ($isRequester) return 'Confirm manual payment when ready.';
+        return 'Runner accepted the request.';
+    }
+    if ($status === 'picked_up') {
+        if ($isRunner) return 'Mark delivered after dropoff.';
+        if ($isRequester) return 'Confirm manual payment if it is complete.';
+        return 'Runner has custody.';
+    }
+    if ($status === 'payment_confirmed') {
+        return $isRunner ? 'Mark delivered after dropoff.' : 'Waiting for the runner to deliver.';
+    }
+    if ($status === 'delivered') {
+        return $isRequester ? 'Confirm delivery to complete the request.' : 'Waiting for requester confirmation.';
+    }
+    if ($status === 'completed') {
+        return 'Closed. History remains available for export and review.';
+    }
+    if ($status === 'expired') {
+        return 'Expired by cleanup. Create a fresh request if the work is still needed.';
+    }
+    return 'Review the event log for the latest update.';
+}
+
+function render_request_state_panel(array $u, array $r): string {
+    $status = (string)$r['status'];
+    $steps = request_status_steps();
+    $isExpired = $status === 'expired';
+    $doneByStatus = [
+        'new' => [],
+        'accepted' => ['new'],
+        'picked_up' => ['new', 'accepted'],
+        'payment_confirmed' => ['new', 'accepted'],
+        'delivered' => ['new', 'accepted', 'picked_up', 'payment_confirmed'],
+        'completed' => ['new', 'accepted', 'picked_up', 'payment_confirmed', 'delivered'],
+    ];
+    $doneKeys = $doneByStatus[$status] ?? [];
+
+    $path = '';
+    foreach ($steps as $key => $label) {
+        $idx = array_search($key, array_keys($steps), true);
+        $classes = ['statepoint'];
+        if (!$isExpired && in_array($key, $doneKeys, true)) $classes[] = 'done';
+        if (!$isExpired && $key === $status) $classes[] = 'current';
+        $path .= '<div class="' . h(implode(' ', $classes)) . '"><small>' . h(str_pad((string)($idx + 1), 2, '0', STR_PAD_LEFT)) . '</small><span>' . h($label) . '</span></div>';
+    }
+    if ($isExpired) {
+        $path .= '<div class="statepoint current"><small>Expired</small><span>Closed</span></div>';
+    }
+
+    $requester = (string)($r['requester_name'] ?? 'Requester');
+    $runner = (string)($r['runner_name'] ?? '');
+    $holder = 'Open queue';
+    if (in_array($status, ['accepted', 'picked_up', 'payment_confirmed', 'delivered'], true)) {
+        $holder = $runner !== '' ? $runner : 'Assigned runner';
+    } elseif ($status === 'completed') {
+        $holder = 'Requester and runner history';
+    } elseif ($status === 'expired') {
+        $holder = 'No active holder';
+    }
+
+    return '<div class="card"><div class="row"><div>'
+        . '<div class="title">Custody path</div>'
+        . '<div class="sub">From ' . h($requester) . ' to ' . h($holder) . '</div>'
+        . '</div><div style="text-align:right"><span class="pill">' . h($status) . '</span></div></div>'
+        . '<div class="statepath" aria-label="Request custody path">' . $path . '</div>'
+        . '<div class="sub" style="margin-top:10px"><strong>Next:</strong> ' . h(request_next_action_hint($u, $r)) . '</div>'
+        . '</div>';
 }
 
 function render_request_actions(array $u, array $r): string {
@@ -2667,10 +2782,6 @@ Summary
 5) Acceptance race protection: `accept_request` runs a transactional conditional UPDATE (`status='new'`), so only one runner can win.
 6) Payments stay peer-to-peer; LiteGig only records manual confirmations (payment + delivery).
 */
-
-
-
-
 
 
 

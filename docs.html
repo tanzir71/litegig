@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LiteGig Docs</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23111111%27/%3E%3Ctext x=%2732%27 y=%2739%27 font-size=%2721%27 text-anchor=%27middle%27 font-family=%27Arial%27 font-weight=%27700%27 fill=%27white%27%3ELG%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #111111;
+      --muted: #5f6368;
+      --line: #e5e7eb;
+      --soft: #f7f8f9;
+      --ink: #111111;
+      --ok: #0f766e;
+      --warn: #a16207;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.58;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    code { font-size: .92em; }
+    pre {
+      margin: 12px 0 0;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfbfb;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .mark {
+      display: inline-grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: var(--ink);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .nav a {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 8px;
+    }
+
+    .nav a:hover { background: var(--soft); color: var(--fg); }
+    .hero { padding: 40px 0 26px; border-bottom: 1px solid var(--line); }
+    .eyebrow {
+      margin: 0 0 10px;
+      color: var(--ok);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    h1 { max-width: 760px; margin: 0; font-size: 40px; line-height: 1.08; letter-spacing: 0; }
+    .lede { max-width: 760px; margin: 16px 0 0; color: #30343b; font-size: 17px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--fg);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .btn.primary { border-color: var(--ink); background: var(--ink); color: #fff; }
+    .layout {
+      display: grid;
+      grid-template-columns: 230px minmax(0, 1fr);
+      gap: 36px;
+      padding: 30px 0 44px;
+    }
+
+    aside {
+      position: sticky;
+      top: 16px;
+      align-self: start;
+      border-right: 1px solid var(--line);
+      padding-right: 18px;
+    }
+
+    aside h2 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    aside a {
+      display: block;
+      padding: 7px 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    aside a:hover { color: var(--fg); }
+    section { scroll-margin-top: 24px; padding: 0 0 30px; border-bottom: 1px solid var(--line); margin-bottom: 30px; }
+    section:last-child { border-bottom: 0; margin-bottom: 0; }
+    h2 { margin: 0 0 10px; font-size: 24px; line-height: 1.18; letter-spacing: 0; }
+    h3 { margin: 20px 0 8px; font-size: 16px; letter-spacing: 0; }
+    p { margin: 0 0 12px; color: #30343b; }
+    ul, ol { margin: 10px 0 0; padding-left: 22px; color: #30343b; }
+    li { margin: 7px 0; }
+    .note {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      padding: 12px;
+      margin-top: 12px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 14px;
+    }
+
+    .card strong { display: block; font-size: 14px; margin-bottom: 5px; }
+    .card span { display: block; color: var(--muted); font-size: 13px; }
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .step {
+      min-height: 66px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      background: #fff;
+    }
+
+    .step small { display: block; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .step span { display: block; margin-top: 4px; font-size: 12px; font-weight: 800; }
+    .bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      border-top: 1px solid var(--line);
+      padding: 22px 0 34px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .bottom a { color: var(--fg); font-weight: 800; }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; gap: 20px; }
+      aside { position: static; border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 14px; }
+      aside nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
+      h1 { font-size: 34px; }
+      .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (max-width: 580px) {
+      .top { align-items: flex-start; flex-direction: column; }
+      .nav { justify-content: flex-start; }
+      h1 { font-size: 30px; }
+      .grid, aside nav, .steps { grid-template-columns: 1fr; }
+      .actions .btn { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="top">
+      <a class="brand" href="index.html" aria-label="LiteGig home"><span class="mark">LG</span><span>LiteGig</span></a>
+      <nav class="nav" aria-label="Project links">
+        <a href="https://vercel-demo-eight-sepia.vercel.app/">Demo</a>
+        <a href="docs.html">Docs</a>
+        <a href="docs.html#security">Security</a>
+        <a href="https://github.com/tanzir71/litegig">GitHub</a>
+      </nav>
+    </header>
+
+    <div class="hero">
+      <p class="eyebrow">Documentation</p>
+      <h1>Install, demo, operate, and harden LiteGig.</h1>
+      <p class="lede">This page is the browsable guide for the static site. The interactive app remains the PHP entrypoint and should be deployed to a host that can run PHP 8 with SQLite.</p>
+      <div class="actions">
+        <a class="btn primary" href="https://vercel-demo-eight-sepia.vercel.app/">Open demo</a>
+        <a class="btn" href="index.html">Landing page</a>
+        <a class="btn" href="https://github.com/tanzir71/litegig/blob/main/litegig.php">View PHP app</a>
+      </div>
+    </div>
+
+    <div class="layout">
+      <aside aria-label="On this page">
+        <h2>On this page</h2>
+        <nav>
+          <a href="#quick-start">Quick start</a>
+          <a href="#demo-accounts">Demo accounts</a>
+          <a href="#workflow">Core workflow</a>
+          <a href="#screens">Screens and features</a>
+          <a href="#deployment">Deployment model</a>
+          <a href="#security">Security</a>
+          <a href="#troubleshooting">Troubleshooting</a>
+          <a href="#roadmap">Roadmap</a>
+        </nav>
+      </aside>
+
+      <article>
+        <section id="quick-start">
+          <h2>Quick start</h2>
+          <p>Use a PHP 8 build with <code>pdo_sqlite</code> enabled. Runtime data is intentionally ignored by Git: local env files, SQLite databases, logs, and upload folders.</p>
+          <pre><code>cp .env.example .env
+php -S 127.0.0.1:8080
+</code></pre>
+          <p>Open <code>http://127.0.0.1:8080/litegig.php</code>, register the first user, and that account becomes admin automatically.</p>
+          <div class="note">The current local workspace may not have PHP on PATH. Run syntax and runtime checks on a host or container with PHP installed.</div>
+        </section>
+
+        <section id="demo-accounts">
+          <h2>Demo accounts</h2>
+          <p>After creating the first admin account, use <strong>Load Sample</strong> in the app nav. LiteGig inserts sample requester and runner accounts plus local gig requests across multiple task types.</p>
+          <div class="grid">
+            <div class="card"><strong>Requester</strong><span><code>requester@example.test</code>. Password is generated and shown after sample load.</span></div>
+            <div class="card"><strong>Runner</strong><span><code>runner@example.test</code>. Password is generated and shown after sample load.</span></div>
+          </div>
+          <p>Use a private test environment for sample credentials. If the users already exist, the app keeps the existing passwords and tells you so.</p>
+        </section>
+
+        <section id="workflow">
+          <h2>Core workflow</h2>
+          <p>LiteGig models a local request as a custody path. The detail page shows who created the work, who currently owns the next operational move, and what action is available next.</p>
+          <div class="steps" aria-label="Request workflow states">
+            <div class="step"><small>01</small><span>New</span></div>
+            <div class="step"><small>02</small><span>Accepted</span></div>
+            <div class="step"><small>03</small><span>Picked up</span></div>
+            <div class="step"><small>04</small><span>Paid</span></div>
+            <div class="step"><small>05</small><span>Delivered</span></div>
+            <div class="step"><small>06</small><span>Completed</span></div>
+          </div>
+          <p>Payment remains peer-to-peer. LiteGig only records manual confirmations and does not process or store payment details.</p>
+        </section>
+
+        <section id="screens">
+          <h2>Screens and features</h2>
+          <div class="grid">
+            <div class="card"><strong>Request queue</strong><span>Search by keyword and filter by status, task type, and distance when geo fields exist.</span></div>
+            <div class="card"><strong>Create request</strong><span>Dynamic forms render from task type schemas, including geo, prices, attachments, and select fields.</span></div>
+            <div class="card"><strong>Request detail</strong><span>Shows custody state, details, event log, actions, and rating controls.</span></div>
+            <div class="card"><strong>Task types</strong><span>Admins can create, edit, preview, and delete schemas that are not already in use.</span></div>
+            <div class="card"><strong>Exports</strong><span>CSV export is available to users for their own history and to admins for broader operational history.</span></div>
+            <div class="card"><strong>Sample data</strong><span>Admins can seed realistic local delivery, errand, buy-and-bring, and flyer distribution examples.</span></div>
+          </div>
+        </section>
+
+        <section id="deployment">
+          <h2>Deployment model</h2>
+          <p>Keep hosting responsibilities separated:</p>
+          <ul>
+            <li><strong>Static repository pages:</strong> serve <code>index.html</code> and <code>docs.html</code> as public landing and documentation pages.</li>
+            <li><strong>Vercel demo:</strong> serve <code>vercel-demo/</code> as a static workflow preview that links back to the GitHub landing page.</li>
+            <li><strong>Interactive app host:</strong> serve <code>litegig.php</code> on PHP 8+ with <code>pdo_sqlite</code>, <code>sqlite3</code>, and <code>fileinfo</code>.</li>
+            <li><strong>Shared-host bundle:</strong> copy the app, env example, docs pages, and security tools to a PHP-capable folder such as <code>public_html/litegig/</code>.</li>
+          </ul>
+          <p>Static hosts can publish the landing/docs layer, but they will not execute the PHP app unless the platform is explicitly configured for PHP runtime support.</p>
+          <pre><code>chmod 750 litegig_data
+chmod 750 ../litegig_uploads
+chmod 640 .env
+chmod 644 litegig.php index.html docs.html
+</code></pre>
+        </section>
+
+        <section id="security">
+          <h2>Security expectations</h2>
+          <p>The app includes output escaping, CSRF checks for state-changing forms, prepared SQL statements, session regeneration, private attachment downloads, upload validation, rate limits, CSP/security headers, and env-based runtime config.</p>
+          <ul>
+            <li>Keep <code>.env</code>, databases, logs, and uploads outside public links.</li>
+            <li>Set a long random <code>LITEGIG_CRON_TOKEN</code> before enabling HTTP cron access.</li>
+            <li>Force HTTPS at the domain level and keep PHP/cPanel extensions patched.</li>
+            <li>Back up the database and upload directory daily before using real customer data.</li>
+            <li>Move from SQLite to a managed database when write concurrency grows.</li>
+          </ul>
+        </section>
+
+        <section id="troubleshooting">
+          <h2>Troubleshooting</h2>
+          <h3>SQLite driver missing</h3>
+          <p>Enable <code>pdo_sqlite</code> in the PHP extension manager or deploy to a PHP host that supports SQLite.</p>
+          <h3>Uploads fail</h3>
+          <p>Check <code>LITEGIG_UPLOAD_DIR</code>, directory permissions, file size limits, and allowed file extensions.</p>
+          <h3>Sample data cannot load</h3>
+          <p>Confirm you are logged in as an admin. The first registered user is admin; later users are not.</p>
+          <h3>CSV excludes emails</h3>
+          <p>That is the safe default. Admin PII export requires the env flag to be enabled and an explicit export request.</p>
+        </section>
+
+        <section id="roadmap">
+          <h2>Roadmap</h2>
+          <ul>
+            <li>Keep the static Vercel demo aligned with the PHP app workflow.</li>
+            <li>Add richer account switching for public demos without weakening production auth.</li>
+            <li>Introduce database adapters for MySQL or Postgres when SQLite is no longer enough.</li>
+            <li>Add notification hooks for status changes and comments.</li>
+            <li>Expand automated tests on a PHP-enabled CI runner.</li>
+          </ul>
+        </section>
+      </article>
+    </div>
+
+    <footer class="bottom">
+      <span>LiteGig docs for the static public layer and PHP app package.</span>
+      <span><a href="index.html">Home</a> | <a href="https://vercel-demo-eight-sepia.vercel.app/">Demo</a> | <a href="https://github.com/tanzir71/litegig">GitHub</a></span>
+    </footer>
+  </main>
+</body>
+</html>

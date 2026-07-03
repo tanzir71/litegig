@@ -4,7 +4,7 @@
 
 1. In cPanel, open **File Manager**.
 2. Upload these project files to `public_html/` or a subfolder such as `public_html/litegig/`.
-3. Keep `index.html`, `litegig.php`, `README.md`, `SETUP.md`, `SECURITY.md`, `.env.example`, and `tools/security_scan.php`.
+3. Keep `index.html`, `docs.html`, `litegig.php`, `README.md`, `SETUP.md`, `SECURITY.md`, `.env.example`, and `tools/security_scan.php`.
 4. Copy `.env.example` to `.env`.
 
 Use the exact repository link when publishing project links: https://github.com/tanzir71/litegig
@@ -42,7 +42,7 @@ Set directories writable by the PHP user:
 chmod 750 litegig_data
 chmod 750 ../litegig_uploads
 chmod 640 .env
-chmod 644 litegig.php index.html README.md SETUP.md SECURITY.md
+chmod 644 litegig.php index.html docs.html README.md SETUP.md SECURITY.md
 ```
 
 If cPanel creates the folders for you, use File Manager permissions instead.

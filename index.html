@@ -4,113 +4,398 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LiteGig</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23111111%27/%3E%3Ctext x=%2732%27 y=%2739%27 font-size=%2721%27 text-anchor=%27middle%27 font-family=%27Arial%27 font-weight=%27700%27 fill=%27white%27%3ELG%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    :root { --bg:#fff; --fg:#0d0d0d; --muted:#666; --line:#e7e7e7; --soft:#f8f8f8; }
-    * { box-sizing: border-box; }
-    html, body { margin: 0; background: var(--bg); color: var(--fg); font-family: Inter, system-ui, -apple-system, Segoe UI, sans-serif; }
-    a { color: inherit; text-decoration: none; }
-    .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
-    .top { display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid var(--line); }
-    .brand { font-weight: 800; font-size: 15px; }
-    .nav { display: flex; gap: 18px; align-items: center; font-size: 13px; color: var(--muted); }
-    .github { color: var(--fg); font-weight: 700; }
-    .hero { display: grid; grid-template-columns: 1fr; gap: 28px; padding: 64px 0 48px; }
-    .eyebrow { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
-    h1 { font-size: clamp(44px, 8vw, 86px); line-height: .95; letter-spacing: 0; margin: 0; max-width: 900px; }
-    .lede { max-width: 760px; margin: 22px 0 0; color: #333; font-size: clamp(18px, 2vw, 22px); line-height: 1.45; }
-    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px; }
-    .btn { border: 1px solid var(--fg); border-radius: 8px; min-height: 44px; padding: 12px 16px; font-weight: 800; font-size: 14px; }
-    .btn.primary { background: var(--fg); color: var(--bg); }
-    .signals { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; color: #333; font-size: 13px; }
-    .signals span { border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; background: #fff; }
-    .surface { border: 1px solid var(--line); border-radius: 8px; background: var(--soft); padding: 12px; }
-    .surface-head { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 6px 4px 14px; font-size: 12px; color: var(--muted); }
-    .board { display: grid; grid-template-columns: 1fr; gap: 10px; }
-    .panel { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 14px; min-height: 118px; }
-    .panel strong { display: block; font-size: 13px; margin-bottom: 10px; }
-    .line { height: 8px; background: #111; border-radius: 999px; margin: 8px 0; }
-    .line.m { width: 68%; opacity: .28; }
-    .line.s { width: 42%; opacity: .16; }
-    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 20px 0 72px; }
-    .step { border-top: 1px solid var(--line); padding-top: 16px; }
-    .num { color: var(--muted); font-size: 12px; margin-bottom: 10px; }
-    .step h2 { font-size: 19px; margin: 0 0 8px; letter-spacing: 0; }
-    .step p { margin: 0; color: var(--muted); line-height: 1.5; font-size: 14px; }
-    .bottom { border-top: 1px solid var(--line); padding: 24px 0 36px; color: var(--muted); font-size: 13px; display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-    @media (min-width: 820px) {
-      .hero { grid-template-columns: 1.05fr .95fr; align-items: end; }
-      .board { grid-template-columns: 1fr 1fr; }
-      .panel.wide { grid-column: 1 / -1; }
+    :root {
+      --bg: #ffffff;
+      --fg: #111111;
+      --muted: #5f6368;
+      --line: #e5e7eb;
+      --soft: #f7f8f9;
+      --ink: #111111;
+      --ok: #0f766e;
+      --warn: #a16207;
     }
-    @media (max-width: 760px) {
-      .nav { gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-      .hero { padding-top: 42px; }
-      .steps { grid-template-columns: 1fr; padding-bottom: 44px; }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    html, body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body { font-size: 15px; line-height: 1.5; }
+    a { color: inherit; text-decoration: none; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92em; }
+
+    .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 16px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 15px;
+    }
+
+    .mark {
+      display: inline-grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: var(--ink);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0;
+    }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .nav a {
+      min-height: 36px;
+      display: inline-flex;
+      align-items: center;
+      padding: 8px 10px;
+      border-radius: 8px;
+    }
+
+    .nav a:hover { background: var(--soft); color: var(--fg); }
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, .86fr);
+      gap: 32px;
+      align-items: center;
+      padding: 54px 0 42px;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px;
+      color: var(--ok);
+      font-size: 13px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: 46px;
+      line-height: 1.04;
+      letter-spacing: 0;
+    }
+
+    .lede {
+      max-width: 700px;
+      margin: 18px 0 0;
+      color: #30343b;
+      font-size: 18px;
+      line-height: 1.55;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 42px;
+      padding: 10px 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--fg);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .btn.primary {
+      border-color: var(--ink);
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .signals {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 26px;
+      max-width: 660px;
+    }
+
+    .signal {
+      border-top: 1px solid var(--line);
+      padding-top: 12px;
+    }
+
+    .signal strong { display: block; font-size: 13px; }
+    .signal span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+
+    .workflow-panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      padding: 14px;
+    }
+
+    .panel-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .request-card {
+      padding: 4px;
+    }
+
+    .request-title { font-weight: 800; font-size: 15px; }
+    .request-meta { margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .path {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 14px;
+    }
+
+    .path-step {
+      min-height: 64px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px;
+    }
+
+    .path-step.done { border-color: #b7ddd3; background: #f0faf7; }
+    .path-step.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
+    .path-step small { display: block; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
+    .path-step span { display: block; margin-top: 4px; font-size: 12px; font-weight: 800; }
+    .next-action {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+      margin-top: 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px;
+    }
+
+    .next-action strong { display: block; font-size: 13px; }
+    .next-action span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 800;
+      background: #fff;
+    }
+
+    .band { border-top: 1px solid var(--line); padding: 30px 0; }
+    .section-head {
+      display: grid;
+      grid-template-columns: minmax(0, .7fr) minmax(280px, 1fr);
+      gap: 28px;
+      align-items: start;
+      margin-bottom: 20px;
+    }
+
+    h2 { margin: 0; font-size: 24px; line-height: 1.18; letter-spacing: 0; }
+    .section-head p { margin: 0; color: var(--muted); }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .item {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 14px;
+      min-height: 132px;
+    }
+
+    .item h3 { margin: 0 0 8px; font-size: 15px; letter-spacing: 0; }
+    .item p { margin: 0; color: var(--muted); font-size: 13px; }
+    .item code { color: var(--fg); }
+    .bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      border-top: 1px solid var(--line);
+      padding: 22px 0 34px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .bottom a { color: var(--fg); font-weight: 800; }
+
+    @media (max-width: 860px) {
+      .hero, .section-head { grid-template-columns: 1fr; }
+      .hero { padding-top: 38px; }
+      h1 { font-size: 36px; }
+      .signals, .grid { grid-template-columns: 1fr; }
+      .path { grid-template-columns: 1fr; }
+      .next-action { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .top { align-items: flex-start; flex-direction: column; }
+      .nav { justify-content: flex-start; }
+      h1 { font-size: 32px; }
+      .lede { font-size: 16px; }
+      .actions .btn { width: 100%; }
     }
   </style>
 </head>
 <body>
   <main class="shell">
     <header class="top">
-      <a class="brand" href="litegig.php">LiteGig</a>
+      <a class="brand" href="index.html" aria-label="LiteGig home"><span class="mark">LG</span><span>LiteGig</span></a>
       <nav class="nav" aria-label="Project links">
-        <a href="README.md">Overview</a>
-        <a href="SETUP.md">Setup</a>
-        <a href="SECURITY.md">Security</a>
-        <a class="github" href="https://github.com/tanzir71/litegig">GitHub</a>
+        <a href="https://vercel-demo-eight-sepia.vercel.app/">Demo</a>
+        <a href="docs.html">Docs</a>
+        <a href="docs.html#security">Security</a>
+        <a href="https://github.com/tanzir71/litegig">GitHub</a>
       </nav>
     </header>
 
-    <section class="hero">
+    <section class="hero" aria-label="LiteGig overview">
       <div>
-        <div class="eyebrow">Local-first marketplace ops</div>
-        <h1>Run small gigs without handing the workflow to a platform.</h1>
-        <p class="lede">LiteGig is a single-file PHP app for posting requests, accepting work, tracking handoffs, and exporting clean records from your own hosting account.</p>
+        <p class="eyebrow">Self-hosted local gig operations</p>
+        <h1>Post requests, accept work, and track custody without handing the workflow to a marketplace.</h1>
+        <p class="lede">LiteGig is a PHP 8 and SQLite app for small local jobs: deliveries, errands, buy-and-bring requests, flyer drops, manual payment confirmation, attachments, ratings, and exportable records.</p>
         <div class="actions">
-          <a class="btn primary" href="litegig.php">Open app</a>
-          <a class="btn" href="SETUP.md">Read setup</a>
+          <a class="btn primary" href="https://vercel-demo-eight-sepia.vercel.app/">Open demo</a>
+          <a class="btn" href="docs.html">Read docs</a>
+          <a class="btn" href="https://vercel-demo-eight-sepia.vercel.app/">Track sample item</a>
         </div>
-        <div class="signals">
-          <span>SQLite-ready</span>
-          <span>CSRF protected</span>
-          <span>Private uploads</span>
+        <div class="signals" aria-label="Product signals">
+          <div class="signal"><strong>Shared-host ready</strong><span>Single PHP entrypoint with SQLite.</span></div>
+          <div class="signal"><strong>Operational records</strong><span>Events, statuses, ratings, and CSV export.</span></div>
+          <div class="signal"><strong>Private by default</strong><span>CSRF, private uploads, and security headers.</span></div>
         </div>
       </div>
-      <div class="surface" aria-label="LiteGig interface preview">
-        <div class="surface-head"><span>Review surface</span><span>requests / runners / audit</span></div>
-        <div class="board">
-          <div class="panel wide"><strong>Request queue</strong><div class="line"></div><div class="line m"></div><div class="line s"></div></div>
-          <div class="panel"><strong>Handoff state</strong><div class="line m"></div><div class="line s"></div></div>
-          <div class="panel"><strong>Security controls</strong><div class="line"></div><div class="line m"></div></div>
+
+      <div class="workflow-panel" aria-label="Workflow preview">
+        <div class="panel-top"><span>Active custody path</span><span>Delivery request</span></div>
+        <div class="request-card">
+          <div class="request-title">Deliver a small package</div>
+          <div class="request-meta">Requester: Sample Requester | Runner: Sample Runner | Fee: $15.00</div>
+          <div class="path" aria-label="Request state path">
+            <div class="path-step done"><small>01</small><span>Posted</span></div>
+            <div class="path-step done"><small>02</small><span>Accepted</span></div>
+            <div class="path-step active"><small>03</small><span>Picked up</span></div>
+            <div class="path-step"><small>04</small><span>Delivered</span></div>
+            <div class="path-step"><small>05</small><span>Rated</span></div>
+          </div>
+          <div class="next-action">
+            <div><strong>Next action</strong><span>Requester confirms manual payment or runner marks delivery.</span></div>
+            <span class="badge">Live state</span>
+          </div>
         </div>
       </div>
     </section>
 
-    <section class="steps" aria-label="Project documents">
-      <article class="step">
-        <div class="num">01</div>
-        <h2>Deploy on cPanel</h2>
-        <p>Upload the app, create `.env`, set PHP 8+, and let LiteGig initialize SQLite on first visit.</p>
-      </article>
-      <article class="step">
-        <div class="num">02</div>
-        <h2>Keep data private</h2>
-        <p>Uploads are served through authorization checks, while logs and the database live outside public links.</p>
-      </article>
-      <article class="step">
-        <div class="num">03</div>
-        <h2>Harden production</h2>
-        <p>Review `SECURITY.md` for key rotation, logging, TLS, WAF, backups, and database migration notes.</p>
-      </article>
+    <section class="band" aria-labelledby="workflow-title">
+      <div class="section-head">
+        <h2 id="workflow-title">A compact workflow for real handoffs.</h2>
+        <p>LiteGig keeps the app focused on the operational path: create a request, let a runner accept it, record pickup, confirm payment, mark delivery, rate the other side, and export the history.</p>
+      </div>
+      <div class="grid">
+        <article class="item">
+          <h3>Request queue</h3>
+          <p>Filter by status, task type, distance, and keyword search across titles, descriptions, people, and metadata.</p>
+        </article>
+        <article class="item">
+          <h3>Schema-driven jobs</h3>
+          <p>Admins define task types with fields for addresses, prices, files, select options, dates, numbers, and notes.</p>
+        </article>
+        <article class="item">
+          <h3>Custody timeline</h3>
+          <p>Each request shows where it started, who currently owns the work, and which action should happen next.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="model-title">
+      <div class="section-head">
+        <h2 id="model-title">Clear hosting responsibilities.</h2>
+        <p>The repository can serve a static public layer and a PHP app package. Keep those responsibilities separate so deployment notes stay honest.</p>
+      </div>
+      <div class="grid">
+        <article class="item">
+          <h3>Static site</h3>
+          <p><code>index.html</code> and <code>docs.html</code> are navigable pages for repository hosting or GitHub Pages.</p>
+        </article>
+        <article class="item">
+          <h3>Interactive app</h3>
+          <p><code>litegig.php</code> is the product entrypoint and needs a PHP 8 host with PDO SQLite enabled.</p>
+        </article>
+        <article class="item">
+          <h3>Deploy bundle</h3>
+          <p>The shared-host package is optional but complete: PHP file, env example, docs, and security scan tools.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="band" aria-labelledby="setup-title">
+      <div class="section-head">
+        <h2 id="setup-title">Start with sample data, then harden for production.</h2>
+        <p>Register the first account as admin, load sample data from the admin nav, and use the setup and security checklists before putting real users on it.</p>
+      </div>
+      <div class="actions">
+        <a class="btn primary" href="https://vercel-demo-eight-sepia.vercel.app/">Open seeded demo</a>
+        <a class="btn" href="https://vercel-demo-eight-sepia.vercel.app/">Switch demo account</a>
+        <a class="btn" href="docs.html#quick-start">Setup checklist</a>
+      </div>
     </section>
 
     <footer class="bottom">
-      <span>LiteGig security hardening pass.</span>
-      <span><a href="README.md">README</a> · <a href="SECURITY.md">Security</a> · <a href="https://github.com/tanzir71/litegig">github.com/tanzir71/litegig</a></span>
+      <span>LiteGig: local gig workflow, self-hosted.</span>
+      <span><a href="docs.html">Docs</a> | <a href="https://vercel-demo-eight-sepia.vercel.app/">Demo</a> | <a href="https://github.com/tanzir71/litegig">GitHub</a></span>
     </footer>
   </main>
 </body>

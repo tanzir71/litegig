@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LiteGig Demo</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23111111%27/%3E%3Ctext x=%2732%27 y=%2739%27 font-size=%2721%27 text-anchor=%27middle%27 font-family=%27Arial%27 font-weight=%27700%27 fill=%27white%27%3ELG%3C/text%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f6f7f8;
+      --panel: #ffffff;
+      --fg: #111111;
+      --muted: #666c73;
+      --line: #e2e5e9;
+      --soft: #f1f3f5;
+      --ok: #0f766e;
+      --warn: #a16207;
+      --danger: #b42318;
+      --focus: #111111;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    button, input, select, textarea {
+      font: inherit;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+    }
+
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      padding: 12px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 5;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      min-width: 150px;
+    }
+
+    .mark {
+      display: inline-grid;
+      place-items: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: var(--fg);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .topnav {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 250px minmax(360px, 1fr) 360px;
+      gap: 12px;
+      padding: 12px;
+    }
+
+    .rail, .workspace, .detail {
+      min-width: 0;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .panel + .panel { margin-top: 12px; }
+    .section-title {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      font-weight: 800;
+    }
+
+    .stack { display: flex; flex-direction: column; gap: 8px; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+      min-height: 66px;
+    }
+
+    .metric strong { display: block; font-size: 20px; line-height: 1; }
+    .metric span { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; }
+    label { display: block; margin: 0 0 5px; font-size: 12px; font-weight: 800; color: #34383d; }
+    input, select, textarea {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--fg);
+      padding: 9px 10px;
+      outline: none;
+    }
+
+    textarea {
+      min-height: 82px;
+      resize: vertical;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 1px var(--focus);
+    }
+
+    .btn {
+      min-height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--fg);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 10px;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn.primary { border-color: var(--fg); background: var(--fg); color: #fff; }
+    .btn.danger { border-color: rgba(180,35,24,.2); color: var(--danger); }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn.small { min-height: 32px; padding: 6px 8px; font-size: 12px; }
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .tab {
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .tab.active { border-color: var(--fg); background: var(--fg); color: #fff; }
+    .queue {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .ticket {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 12px;
+      cursor: pointer;
+    }
+
+    .ticket.active { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
+    .ticket-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .ticket h2 {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.25;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .meta + .meta { margin-top: 4px; }
+    .price {
+      font-weight: 900;
+      font-size: 16px;
+      white-space: nowrap;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      min-height: 24px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--soft);
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .pill.ok { color: var(--ok); background: rgba(15,118,110,.08); border-color: rgba(15,118,110,.18); }
+    .pill.warn { color: var(--warn); background: rgba(161,98,7,.08); border-color: rgba(161,98,7,.18); }
+    .pill.danger { color: var(--danger); background: rgba(180,35,24,.08); border-color: rgba(180,35,24,.18); }
+    .detail-title {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.15;
+    }
+
+    .custody {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .step {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-height: 62px;
+      background: #fff;
+      padding: 8px;
+    }
+
+    .step.done { border-color: rgba(15,118,110,.24); background: rgba(15,118,110,.07); }
+    .step.current { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
+    .step small { display: block; color: var(--muted); font-size: 10px; font-weight: 900; text-transform: uppercase; }
+    .step span { display: block; margin-top: 5px; font-size: 12px; font-weight: 800; }
+    .fields {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .field {
+      border-top: 1px solid var(--line);
+      padding-top: 8px;
+    }
+
+    .field b { display: block; font-size: 12px; margin-bottom: 3px; }
+    .event {
+      border-left: 3px solid var(--line);
+      padding: 0 0 0 10px;
+    }
+
+    .event + .event { margin-top: 10px; }
+    .event b { display: block; font-size: 13px; }
+    .event span { display: block; color: var(--muted); font-size: 12px; }
+    .notice {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      padding: 10px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .empty {
+      border: 1px dashed var(--line);
+      border-radius: 8px;
+      padding: 28px 12px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    @media (max-width: 1120px) {
+      .layout { grid-template-columns: 220px minmax(360px, 1fr); }
+      .detail { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 780px) {
+      .top { align-items: flex-start; flex-direction: column; }
+      .topnav { justify-content: flex-start; }
+      .layout { grid-template-columns: 1fr; }
+      .grid, .tabs, .custody { grid-template-columns: 1fr; }
+      .ticket-top { flex-direction: column; }
+      .price { white-space: normal; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <a class="brand" href="https://tanzir71.github.io/litegig/" aria-label="LiteGig landing">
+        <span class="mark">LG</span>
+        <span>LiteGig Demo</span>
+      </a>
+      <nav class="topnav" aria-label="Demo links">
+        <a class="btn small" href="https://tanzir71.github.io/litegig/">GitHub landing</a>
+        <a class="btn small" href="https://github.com/tanzir71/litegig">Repository</a>
+        <button class="btn small" id="resetBtn" type="button">Reset demo</button>
+      </nav>
+    </header>
+
+    <main class="layout">
+      <aside class="rail">
+        <section class="panel">
+          <h2 class="section-title">Account</h2>
+          <div class="tabs" id="roleTabs"></div>
+          <div class="notice" id="roleNote" style="margin-top:10px"></div>
+        </section>
+
+        <section class="panel">
+          <h2 class="section-title">Snapshot</h2>
+          <div class="grid" id="metrics"></div>
+        </section>
+
+        <section class="panel">
+          <h2 class="section-title">Filters</h2>
+          <div class="stack">
+            <div>
+              <label for="search">Search</label>
+              <input id="search" type="search" placeholder="Title, address, note">
+            </div>
+            <div>
+              <label for="statusFilter">Status</label>
+              <select id="statusFilter"></select>
+            </div>
+            <div>
+              <label for="typeFilter">Task type</label>
+              <input id="typeFilter" list="typeOptions" placeholder="All task types">
+              <datalist id="typeOptions"></datalist>
+            </div>
+            <button class="btn" id="clearFilters" type="button">Clear filters</button>
+          </div>
+        </section>
+      </aside>
+
+      <section class="workspace">
+        <div class="panel">
+          <div class="row">
+            <div>
+              <h1 class="detail-title">Request queue</h1>
+              <div class="meta" id="queueSummary"></div>
+            </div>
+            <button class="btn primary" id="newRequestBtn" type="button">New request</button>
+          </div>
+          <div class="queue" id="queue"></div>
+        </div>
+      </section>
+
+      <aside class="detail" id="detail"></aside>
+    </main>
+  </div>
+
+  <template id="requestFormTemplate">
+    <section class="panel">
+      <div class="row">
+        <h2 class="section-title" id="formTitle">Request</h2>
+        <button class="btn small" id="cancelForm" type="button">Cancel</button>
+      </div>
+      <form class="stack" id="requestForm">
+        <input type="hidden" id="editId">
+        <div>
+          <label for="formType">Task type</label>
+          <input id="formType" list="typeOptions" required>
+        </div>
+        <div>
+          <label for="formTitleInput">Title</label>
+          <input id="formTitleInput" required maxlength="120">
+        </div>
+        <div>
+          <label for="formDescription">Description</label>
+          <textarea id="formDescription" required></textarea>
+        </div>
+        <div class="grid">
+          <div>
+            <label for="formPickup">Pickup or target</label>
+            <input id="formPickup" required>
+          </div>
+          <div>
+            <label for="formDropoff">Dropoff or delivery</label>
+            <input id="formDropoff">
+          </div>
+        </div>
+        <div class="grid">
+          <div>
+            <label for="formPrice">Runner fee</label>
+            <input id="formPrice" inputmode="decimal" required>
+          </div>
+          <div>
+            <label for="formWindow">Time window</label>
+            <input id="formWindow">
+          </div>
+        </div>
+        <div>
+          <label for="formNote">Note</label>
+          <textarea id="formNote"></textarea>
+        </div>
+        <button class="btn primary" type="submit">Save request</button>
+      </form>
+    </section>
+  </template>
+
+  <script>
+    const LANDING_URL = "https://tanzir71.github.io/litegig/";
+    const STORAGE_KEY = "litegig_vercel_demo_state_v1";
+    const statuses = ["new", "accepted", "picked_up", "payment_confirmed", "delivered", "completed", "expired"];
+    const statusLabels = {
+      new: "New",
+      accepted: "Accepted",
+      picked_up: "Picked up",
+      payment_confirmed: "Paid",
+      delivered: "Delivered",
+      completed: "Completed",
+      expired: "Expired"
+    };
+    const taskTypes = ["Delivery", "Buy-and-Bring", "Flyer Distribution", "Errand"];
+    const accounts = {
+      admin: { id: 1, name: "Admin", email: "admin@example.test", note: "Can see every request, edit task flow data, and review exports." },
+      requester: { id: 2, name: "Sample Requester", email: "requester@example.test", note: "Creates requests, confirms payment, confirms delivery, and rates runners." },
+      runner: { id: 3, name: "Sample Runner", email: "runner@example.test", note: "Accepts open requests, records pickup, marks delivery, and rates requesters." }
+    };
+
+    const seeds = [
+      {
+        id: 101,
+        type: "Delivery",
+        title: "Deliver a small package",
+        description: "Small box for a front desk handoff. Handle carefully.",
+        pickup: "1 Market St",
+        dropoff: "500 Howard St",
+        price: 15,
+        window: "Today 2:00 PM - 4:00 PM",
+        note: "Ring reception on arrival.",
+        status: "picked_up",
+        requesterId: 2,
+        runnerId: 3,
+        createdAt: "2026-07-03 10:20",
+        events: [
+          ["created", "Sample Requester", "Request created."],
+          ["accepted", "Sample Runner", "Runner accepted the request."],
+          ["picked_up", "Sample Runner", "Runner marked picked up."]
+        ]
+      },
+      {
+        id: 102,
+        type: "Buy-and-Bring",
+        title: "Buy snacks and bring to lobby",
+        description: "Need chips and soda for a late team session.",
+        pickup: "Corner store",
+        dropoff: "Apartment lobby",
+        price: 20,
+        window: "Tonight before 8:30 PM",
+        note: "Substitutions are fine.",
+        status: "new",
+        requesterId: 2,
+        runnerId: null,
+        createdAt: "2026-07-03 12:05",
+        events: [["created", "Sample Requester", "Request created."]]
+      },
+      {
+        id: 103,
+        type: "Flyer Distribution",
+        title: "Distribute flyers downtown",
+        description: "Focus on busy sidewalks and storefront notice boards.",
+        pickup: "Print shop",
+        dropoff: "Downtown route",
+        price: 45,
+        window: "Saturday 10:00 AM - 1:00 PM",
+        note: "Upload photos in the real PHP app.",
+        status: "accepted",
+        requesterId: 2,
+        runnerId: 3,
+        createdAt: "2026-07-02 15:12",
+        events: [
+          ["created", "Sample Requester", "Request created."],
+          ["accepted", "Sample Runner", "Runner accepted the request."]
+        ]
+      },
+      {
+        id: 104,
+        type: "Errand",
+        title: "Drop off permit documents",
+        description: "Drop documents at the permits desk and ask for a stamped receipt.",
+        pickup: "City Hall",
+        dropoff: "Permits desk",
+        price: 18,
+        window: "Tomorrow morning",
+        note: "Receipt required.",
+        status: "completed",
+        requesterId: 2,
+        runnerId: 3,
+        createdAt: "2026-07-01 09:40",
+        events: [
+          ["created", "Sample Requester", "Request created."],
+          ["accepted", "Sample Runner", "Runner accepted the request."],
+          ["picked_up", "Sample Runner", "Runner marked picked up."],
+          ["payment_confirmed", "Sample Requester", "Requester confirmed manual payment."],
+          ["delivered", "Sample Runner", "Runner marked delivered."],
+          ["completed", "Sample Requester", "Requester confirmed delivery."]
+        ]
+      }
+    ];
+
+    let state = loadState();
+
+    function clone(value) {
+      return JSON.parse(JSON.stringify(value));
+    }
+
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        if (saved && Array.isArray(saved.requests)) return saved;
+      } catch (err) {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      return {
+        role: "requester",
+        selectedId: 101,
+        filters: { q: "", status: "all", type: "" },
+        requests: clone(seeds)
+      };
+    }
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function accountFor(id) {
+      return Object.values(accounts).find((a) => a.id === id) || { name: "Open queue" };
+    }
+
+    function money(value) {
+      return "$" + Number(value || 0).toFixed(2);
+    }
+
+    function statusClass(status) {
+      if (status === "completed") return "ok";
+      if (status === "expired") return "danger";
+      if (status === "payment_confirmed" || status === "delivered") return "warn";
+      return "";
+    }
+
+    function visibleRequests() {
+      const user = accounts[state.role];
+      const q = state.filters.q.trim().toLowerCase();
+      return state.requests.filter((request) => {
+        const participant = request.requesterId === user.id || request.runnerId === user.id;
+        const visible = state.role === "admin" || request.status === "new" || participant;
+        if (!visible) return false;
+        if (state.filters.status !== "all" && request.status !== state.filters.status) return false;
+        if (state.filters.type && request.type.toLowerCase() !== state.filters.type.toLowerCase()) return false;
+        if (q) {
+          const haystack = [request.title, request.description, request.pickup, request.dropoff, request.note, request.type, accountFor(request.requesterId).name, accountFor(request.runnerId).name].join(" ").toLowerCase();
+          if (!haystack.includes(q)) return false;
+        }
+        return true;
+      }).sort((a, b) => b.id - a.id);
+    }
+
+    function render() {
+      renderRoles();
+      renderMetrics();
+      renderFilters();
+      renderQueue();
+      renderDetail();
+      saveState();
+    }
+
+    function renderRoles() {
+      const tabs = document.getElementById("roleTabs");
+      tabs.replaceChildren();
+      Object.keys(accounts).forEach((role) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "tab" + (state.role === role ? " active" : "");
+        button.textContent = role[0].toUpperCase() + role.slice(1);
+        button.addEventListener("click", () => {
+          state.role = role;
+          const rows = visibleRequests();
+          state.selectedId = rows[0] ? rows[0].id : null;
+          render();
+        });
+        tabs.appendChild(button);
+      });
+      const active = accounts[state.role];
+      document.getElementById("roleNote").textContent = active.name + " (" + active.email + "). " + active.note;
+    }
+
+    function renderMetrics() {
+      const metrics = document.getElementById("metrics");
+      const rows = visibleRequests();
+      const open = rows.filter((r) => r.status === "new").length;
+      const active = rows.filter((r) => ["accepted", "picked_up", "payment_confirmed", "delivered"].includes(r.status)).length;
+      const total = rows.reduce((sum, r) => sum + Number(r.price || 0), 0);
+      const cells = [
+        [rows.length, "Visible"],
+        [open, "Open"],
+        [active, "Active"],
+        [money(total), "Value"]
+      ];
+      metrics.replaceChildren(...cells.map(([value, label]) => {
+        const el = document.createElement("div");
+        el.className = "metric";
+        el.innerHTML = "<strong></strong><span></span>";
+        el.querySelector("strong").textContent = value;
+        el.querySelector("span").textContent = label;
+        return el;
+      }));
+    }
+
+    function renderFilters() {
+      const status = document.getElementById("statusFilter");
+      if (!status.children.length) {
+        [["all", "All statuses"], ...statuses.map((s) => [s, statusLabels[s]])].forEach(([value, label]) => {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          status.appendChild(option);
+        });
+      }
+      status.value = state.filters.status;
+      document.getElementById("search").value = state.filters.q;
+      document.getElementById("typeFilter").value = state.filters.type;
+
+      const datalist = document.getElementById("typeOptions");
+      if (!datalist.children.length) {
+        taskTypes.forEach((type) => {
+          const option = document.createElement("option");
+          option.value = type;
+          datalist.appendChild(option);
+        });
+      }
+    }
+
+    function renderQueue() {
+      const rows = visibleRequests();
+      const queue = document.getElementById("queue");
+      document.getElementById("queueSummary").textContent = rows.length + " visible requests for " + accounts[state.role].name + ".";
+      if (!rows.some((r) => r.id === state.selectedId)) state.selectedId = rows[0] ? rows[0].id : null;
+      queue.replaceChildren();
+      if (!rows.length) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "No requests match the current filters.";
+        queue.appendChild(empty);
+        return;
+      }
+      rows.forEach((request) => {
+        const ticket = document.createElement("article");
+        ticket.className = "ticket" + (request.id === state.selectedId ? " active" : "");
+        ticket.addEventListener("click", () => {
+          state.selectedId = request.id;
+          render();
+        });
+        ticket.innerHTML = `
+          <div class="ticket-top">
+            <div>
+              <h2></h2>
+              <div class="meta"></div>
+              <div class="meta"></div>
+            </div>
+            <div class="stack" style="align-items:flex-end">
+              <div class="price"></div>
+              <span class="pill"></span>
+            </div>
+          </div>
+        `;
+        ticket.querySelector("h2").textContent = request.title;
+        ticket.querySelectorAll(".meta")[0].textContent = request.type + " | " + request.pickup + " -> " + (request.dropoff || "completion");
+        ticket.querySelectorAll(".meta")[1].textContent = "Requester: " + accountFor(request.requesterId).name + (request.runnerId ? " | Runner: " + accountFor(request.runnerId).name : " | Unassigned");
+        ticket.querySelector(".price").textContent = money(request.price);
+        const pill = ticket.querySelector(".pill");
+        pill.textContent = statusLabels[request.status] || request.status;
+        const cls = statusClass(request.status);
+        if (cls) pill.classList.add(cls);
+        queue.appendChild(ticket);
+      });
+    }
+
+    function renderDetail() {
+      const detail = document.getElementById("detail");
+      const request = state.requests.find((r) => r.id === state.selectedId);
+      detail.replaceChildren();
+      if (!request) {
+        const empty = document.createElement("section");
+        empty.className = "panel empty";
+        empty.textContent = "Select or create a request.";
+        detail.appendChild(empty);
+        return;
+      }
+
+      const panel = document.createElement("section");
+      panel.className = "panel";
+      panel.innerHTML = `
+        <div class="row">
+          <div>
+            <h2 class="detail-title"></h2>
+            <div class="meta" id="detailMeta"></div>
+          </div>
+          <span class="pill" id="detailStatus"></span>
+        </div>
+        <div class="custody" id="custody"></div>
+        <div class="notice" id="nextAction" style="margin-top:10px"></div>
+        <div class="fields" id="fields"></div>
+        <div class="row" style="margin-top:12px; align-items:stretch">
+          <button class="btn primary" id="advanceBtn" type="button"></button>
+          <button class="btn" id="editBtn" type="button">Edit</button>
+          <button class="btn danger" id="deleteBtn" type="button">Delete</button>
+        </div>
+      `;
+      panel.querySelector(".detail-title").textContent = request.title;
+      panel.querySelector("#detailMeta").textContent = request.type + " | " + accountFor(request.requesterId).name + " -> " + (request.runnerId ? accountFor(request.runnerId).name : "Open queue");
+      const detailStatus = panel.querySelector("#detailStatus");
+      detailStatus.textContent = statusLabels[request.status] || request.status;
+      const cls = statusClass(request.status);
+      if (cls) detailStatus.classList.add(cls);
+      detail.appendChild(panel);
+
+      renderCustody(panel.querySelector("#custody"), request);
+      panel.querySelector("#nextAction").textContent = nextActionLabel(request).hint;
+      renderFields(panel.querySelector("#fields"), request);
+      configureActions(panel, request);
+      renderEvents(detail, request);
+    }
+
+    function renderCustody(root, request) {
+      const path = ["new", "accepted", "picked_up", "payment_confirmed", "delivered", "completed"];
+      const doneByStatus = {
+        new: [],
+        accepted: ["new"],
+        picked_up: ["new", "accepted"],
+        payment_confirmed: ["new", "accepted"],
+        delivered: ["new", "accepted", "picked_up", "payment_confirmed"],
+        completed: ["new", "accepted", "picked_up", "payment_confirmed", "delivered"]
+      };
+      root.replaceChildren();
+      path.forEach((key, index) => {
+        const step = document.createElement("div");
+        step.className = "step";
+        if ((doneByStatus[request.status] || []).includes(key)) step.classList.add("done");
+        if (request.status === key) step.classList.add("current");
+        step.innerHTML = "<small></small><span></span>";
+        step.querySelector("small").textContent = String(index + 1).padStart(2, "0");
+        step.querySelector("span").textContent = statusLabels[key];
+        root.appendChild(step);
+      });
+    }
+
+    function renderFields(root, request) {
+      const fields = [
+        ["Description", request.description],
+        ["Pickup or target", request.pickup],
+        ["Dropoff or delivery", request.dropoff || "Not required"],
+        ["Time window", request.window || "Flexible"],
+        ["Note", request.note || "None"]
+      ];
+      root.replaceChildren(...fields.map(([label, value]) => {
+        const field = document.createElement("div");
+        field.className = "field";
+        field.innerHTML = "<b></b><span></span>";
+        field.querySelector("b").textContent = label;
+        field.querySelector("span").textContent = value;
+        return field;
+      }));
+    }
+
+    function nextActionLabel(request) {
+      const role = state.role;
+      const isRequester = accounts[role].id === request.requesterId;
+      const isRunner = accounts[role].id === request.runnerId;
+      if (request.status === "new") return isRequester ? { label: "Waiting", hint: "Waiting for a runner to accept.", disabled: true } : { label: "Accept", hint: "Accept this request to take custody." };
+      if (request.status === "accepted") {
+        if (isRunner) return { label: "Mark picked up", hint: "Runner should mark pickup after receiving the item." };
+        if (isRequester) return { label: "Confirm payment", hint: "Requester can record manual payment confirmation." };
+      }
+      if (request.status === "picked_up") {
+        if (isRunner) return { label: "Mark delivered", hint: "Runner can mark delivery after dropoff." };
+        if (isRequester) return { label: "Confirm payment", hint: "Requester can record manual payment confirmation." };
+      }
+      if (request.status === "payment_confirmed") return isRunner ? { label: "Mark delivered", hint: "Payment is recorded. Runner should complete delivery." } : { label: "Waiting", hint: "Waiting for runner delivery.", disabled: true };
+      if (request.status === "delivered") return isRequester ? { label: "Confirm delivery", hint: "Requester can close the request." } : { label: "Waiting", hint: "Waiting for requester confirmation.", disabled: true };
+      if (request.status === "completed") return { label: "Closed", hint: "Request is complete and ready for history/export.", disabled: true };
+      return { label: "Closed", hint: "This request is no longer active.", disabled: true };
+    }
+
+    function configureActions(panel, request) {
+      const advance = panel.querySelector("#advanceBtn");
+      const action = nextActionLabel(request);
+      advance.textContent = action.label;
+      advance.disabled = !!action.disabled;
+      advance.addEventListener("click", () => advanceRequest(request.id));
+      panel.querySelector("#editBtn").addEventListener("click", () => showForm(request));
+      panel.querySelector("#deleteBtn").addEventListener("click", () => {
+        state.requests = state.requests.filter((r) => r.id !== request.id);
+        state.selectedId = visibleRequests()[0] ? visibleRequests()[0].id : null;
+        render();
+      });
+    }
+
+    function renderEvents(container, request) {
+      const panel = document.createElement("section");
+      panel.className = "panel";
+      panel.innerHTML = "<h2 class=\"section-title\">Event log</h2>";
+      request.events.forEach(([type, actor, note]) => {
+        const event = document.createElement("div");
+        event.className = "event";
+        event.innerHTML = "<b></b><span></span><p style=\"margin:4px 0 0\"></p>";
+        event.querySelector("b").textContent = statusLabels[type] || type;
+        event.querySelector("span").textContent = actor;
+        event.querySelector("p").textContent = note;
+        panel.appendChild(event);
+      });
+
+      const form = document.createElement("form");
+      form.className = "stack";
+      form.style.marginTop = "12px";
+      form.innerHTML = `
+        <div>
+          <label for="eventNote">Post update</label>
+          <textarea id="eventNote" placeholder="Short operational note"></textarea>
+        </div>
+        <button class="btn" type="submit">Post update</button>
+      `;
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const note = form.querySelector("#eventNote").value.trim();
+        if (!note) return;
+        request.events.push(["comment", accounts[state.role].name, note]);
+        form.querySelector("#eventNote").value = "";
+        render();
+      });
+      panel.appendChild(form);
+      container.appendChild(panel);
+    }
+
+    function advanceRequest(id) {
+      const request = state.requests.find((r) => r.id === id);
+      if (!request) return;
+      const actor = accounts[state.role].name;
+      if (request.status === "new") {
+        request.status = "accepted";
+        request.runnerId = accounts[state.role].id;
+        request.events.push(["accepted", actor, "Runner accepted the request."]);
+      } else if (request.status === "accepted") {
+        if (state.role === "runner") {
+          request.status = "picked_up";
+          request.events.push(["picked_up", actor, "Runner marked picked up."]);
+        } else if (state.role === "requester") {
+          request.status = "payment_confirmed";
+          request.events.push(["payment_confirmed", actor, "Requester confirmed manual payment."]);
+        }
+      } else if (request.status === "picked_up") {
+        if (state.role === "runner") {
+          request.status = "delivered";
+          request.events.push(["delivered", actor, "Runner marked delivered."]);
+        } else if (state.role === "requester") {
+          request.status = "payment_confirmed";
+          request.events.push(["payment_confirmed", actor, "Requester confirmed manual payment."]);
+        }
+      } else if (request.status === "payment_confirmed" && state.role === "runner") {
+        request.status = "delivered";
+        request.events.push(["delivered", actor, "Runner marked delivered."]);
+      } else if (request.status === "delivered" && state.role === "requester") {
+        request.status = "completed";
+        request.events.push(["completed", actor, "Requester confirmed delivery."]);
+      }
+      render();
+    }
+
+    function showForm(request) {
+      const detail = document.getElementById("detail");
+      detail.replaceChildren();
+      const fragment = document.getElementById("requestFormTemplate").content.cloneNode(true);
+      detail.appendChild(fragment);
+      const form = document.getElementById("requestForm");
+      document.getElementById("formTitle").textContent = request ? "Edit request" : "New request";
+      if (request) {
+        document.getElementById("editId").value = request.id;
+        document.getElementById("formType").value = request.type;
+        document.getElementById("formTitleInput").value = request.title;
+        document.getElementById("formDescription").value = request.description;
+        document.getElementById("formPickup").value = request.pickup;
+        document.getElementById("formDropoff").value = request.dropoff;
+        document.getElementById("formPrice").value = request.price;
+        document.getElementById("formWindow").value = request.window;
+        document.getElementById("formNote").value = request.note;
+      } else {
+        document.getElementById("formType").value = "Delivery";
+      }
+      document.getElementById("cancelForm").addEventListener("click", render);
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        const id = Number(document.getElementById("editId").value || 0);
+        const payload = {
+          type: document.getElementById("formType").value.trim() || "Delivery",
+          title: document.getElementById("formTitleInput").value.trim(),
+          description: document.getElementById("formDescription").value.trim(),
+          pickup: document.getElementById("formPickup").value.trim(),
+          dropoff: document.getElementById("formDropoff").value.trim(),
+          price: Number(document.getElementById("formPrice").value || 0),
+          window: document.getElementById("formWindow").value.trim(),
+          note: document.getElementById("formNote").value.trim()
+        };
+        if (id) {
+          const existing = state.requests.find((r) => r.id === id);
+          Object.assign(existing, payload);
+          existing.events.push(["comment", accounts[state.role].name, "Request details updated."]);
+          state.selectedId = id;
+        } else {
+          const nextId = Math.max(...state.requests.map((r) => r.id), 100) + 1;
+          state.requests.push({
+            id: nextId,
+            ...payload,
+            status: "new",
+            requesterId: accounts[state.role].id,
+            runnerId: null,
+            createdAt: new Date().toISOString().slice(0, 16).replace("T", " "),
+            events: [["created", accounts[state.role].name, "Request created."]]
+          });
+          state.selectedId = nextId;
+        }
+        render();
+      });
+    }
+
+    document.getElementById("search").addEventListener("input", (event) => {
+      state.filters.q = event.target.value;
+      render();
+    });
+    document.getElementById("statusFilter").addEventListener("change", (event) => {
+      state.filters.status = event.target.value;
+      render();
+    });
+    document.getElementById("typeFilter").addEventListener("input", (event) => {
+      state.filters.type = event.target.value.trim();
+      render();
+    });
+    document.getElementById("clearFilters").addEventListener("click", () => {
+      state.filters = { q: "", status: "all", type: "" };
+      render();
+    });
+    document.getElementById("newRequestBtn").addEventListener("click", () => showForm(null));
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      localStorage.removeItem(STORAGE_KEY);
+      state = loadState();
+      render();
+    });
+
+    document.querySelector(".brand").href = LANDING_URL;
+    render();
+  </script>
+</body>
+</html>
