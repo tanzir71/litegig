@@ -4,29 +4,17 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LiteGig</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23111111%27/%3E%3Ctext x=%2732%27 y=%2739%27 font-size=%2721%27 text-anchor=%27middle%27 font-family=%27Arial%27 font-weight=%27700%27 fill=%27white%27%3ELG%3C/text%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%276%27 y=%276%27 width=%274.2%27 height=%2720%27 fill=%27%230b0d12%27/%3E%3Crect x=%276%27 y=%2721.8%27 width=%2720%27 height=%274.2%27 fill=%27%230b0d12%27/%3E%3Crect x=%2717.8%27 y=%276%27 width=%278.2%27 height=%278.2%27 fill=%27%230f7a52%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles/tokens.css">
   <style>
-    :root {
-      --bg: #ffffff;
-      --fg: #111111;
-      --muted: #5f6368;
-      --line: #e5e7eb;
-      --soft: #f7f8f9;
-      --ink: #111111;
-      --ok: #0f766e;
-      --warn: #a16207;
-    }
-
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
     html, body {
       margin: 0;
+      overflow-x: hidden;
       background: var(--bg);
       color: var(--fg);
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-family: var(--sans);
     }
 
     body { font-size: 15px; line-height: 1.5; }
@@ -35,11 +23,17 @@
 
     .shell { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
     .top {
+      position: sticky;
+      top: 0;
+      z-index: 20;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 18px;
-      padding: 16px 0;
+      padding: 14px 0;
+      background: rgba(255,255,255,.86);
+      backdrop-filter: saturate(1.4) blur(10px);
+      -webkit-backdrop-filter: saturate(1.4) blur(10px);
       border-bottom: 1px solid var(--line);
     }
 
@@ -47,7 +41,7 @@
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      font-weight: 800;
+      font-weight:700;
       font-size: 15px;
     }
 
@@ -56,13 +50,8 @@
       place-items: center;
       width: 30px;
       height: 30px;
-      border-radius: 8px;
-      background: var(--ink);
-      color: #fff;
-      font-size: 12px;
-      font-weight: 800;
-      letter-spacing: 0;
     }
+    .mark svg { display: block; }
 
     .nav {
       display: flex;
@@ -76,11 +65,11 @@
     }
 
     .nav a {
-      min-height: 36px;
+      min-height: 44px;
       display: inline-flex;
       align-items: center;
       padding: 8px 10px;
-      border-radius: 8px;
+      border-radius:0;
     }
 
     .nav a:hover { background: var(--soft); color: var(--fg); }
@@ -89,24 +78,26 @@
       grid-template-columns: minmax(0, 1fr) minmax(320px, .86fr);
       gap: 32px;
       align-items: center;
-      padding: 54px 0 42px;
+      padding: 68px 0 52px;
     }
 
     .eyebrow {
-      margin: 0 0 12px;
-      color: var(--ok);
-      font-size: 13px;
-      font-weight: 800;
+      margin: 0 0 14px;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: .04em;
+      letter-spacing: 0;
     }
 
     h1 {
       max-width: 760px;
       margin: 0;
+      color: var(--ink);
       font-size: 46px;
-      line-height: 1.04;
+      line-height: 1.05;
       letter-spacing: 0;
+      font-weight: 700;
     }
 
     .lede {
@@ -128,23 +119,27 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-height: 42px;
-      padding: 10px 14px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
+      min-height: 44px;
+      padding: 11px 18px;
+      border: 1px solid var(--line-2);
+      border-radius:0;
       background: #fff;
-      color: var(--fg);
+      color: var(--ink);
       font-size: 14px;
-      font-weight: 800;
+      font-weight: 600;
+      transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
     }
+
+    .btn:hover { border-color: var(--ink); background: var(--soft); }
 
     .btn.primary {
       border-color: var(--ink);
       background: var(--ink);
       color: #fff;
+      box-shadow: var(--shadow-sm);
     }
 
-    .btn:hover { transform: translateY(-1px); }
+    .btn.primary:hover { background: #20242c; border-color: #20242c; }
     .signals {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -163,9 +158,10 @@
 
     .workflow-panel {
       border: 1px solid var(--line);
-      border-radius: 8px;
-      background: var(--soft);
-      padding: 14px;
+      border-radius:0;
+      background: #fff;
+      padding: 20px;
+      box-shadow: var(--shadow);
     }
 
     .panel-top {
@@ -183,7 +179,7 @@
       padding: 4px;
     }
 
-    .request-title { font-weight: 800; font-size: 15px; }
+    .request-title { font-weight:700; font-size: 15px; }
     .request-meta { margin-top: 4px; color: var(--muted); font-size: 12px; }
     .path {
       display: grid;
@@ -195,15 +191,15 @@
     .path-step {
       min-height: 64px;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius:0;
       background: #fff;
       padding: 8px;
     }
 
-    .path-step.done { border-color: #b7ddd3; background: #f0faf7; }
+    .path-step.done { border-color: #c4e2d6; background: var(--accent-soft); }
     .path-step.active { border-color: var(--ink); box-shadow: inset 0 0 0 1px var(--ink); }
-    .path-step small { display: block; color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; }
-    .path-step span { display: block; margin-top: 4px; font-size: 12px; font-weight: 800; }
+    .path-step small { display: block; color: var(--muted); font-size: 11px; font-weight:700; text-transform: uppercase; }
+    .path-step span { display: block; margin-top: 4px; font-size: 12px; font-weight:700; }
     .next-action {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -211,7 +207,7 @@
       align-items: center;
       margin-top: 12px;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius:0;
       background: #fff;
       padding: 12px;
     }
@@ -222,24 +218,24 @@
       display: inline-flex;
       align-items: center;
       min-height: 28px;
-      border-radius: 999px;
+      border-radius:0;
       border: 1px solid var(--line);
       padding: 5px 9px;
       font-size: 12px;
-      font-weight: 800;
+      font-weight:700;
       background: #fff;
     }
 
-    .band { border-top: 1px solid var(--line); padding: 30px 0; }
+    .band { border-top: 1px solid var(--line); padding: 56px 0; }
     .section-head {
       display: grid;
       grid-template-columns: minmax(0, .7fr) minmax(280px, 1fr);
       gap: 28px;
       align-items: start;
-      margin-bottom: 20px;
+      margin-bottom: 30px;
     }
 
-    h2 { margin: 0; font-size: 24px; line-height: 1.18; letter-spacing: 0; }
+    h2 { margin: 0; color: var(--ink); font-size: 27px; line-height: 1.16; letter-spacing: 0; font-weight: 700; }
     .section-head p { margin: 0; color: var(--muted); }
     .grid {
       display: grid;
@@ -249,13 +245,14 @@
 
     .item {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius:0;
       background: #fff;
-      padding: 14px;
-      min-height: 132px;
+      padding: 22px;
+      min-height: 140px;
+      box-shadow: var(--shadow-sm);
     }
 
-    .item h3 { margin: 0 0 8px; font-size: 15px; letter-spacing: 0; }
+    .item h3 { margin: 0 0 8px; color: var(--ink); font-size: 15px; letter-spacing: 0; font-weight: 600; }
     .item p { margin: 0; color: var(--muted); font-size: 13px; }
     .item code { color: var(--fg); }
     .bottom {
@@ -270,7 +267,7 @@
       font-size: 13px;
     }
 
-    .bottom a { color: var(--fg); font-weight: 800; }
+    .bottom a { color: var(--fg); font-weight:700; }
 
     @media (max-width: 860px) {
       .hero, .section-head { grid-template-columns: 1fr; }
@@ -293,57 +290,36 @@
 <body>
   <main class="shell">
     <header class="top">
-<<<<<<< HEAD
-      <a class="brand" href="index.html" aria-label="LiteGig home"><span class="mark">LG</span><span>LiteGig</span></a>
+      <a class="brand" href="index.html" aria-label="LiteGig home"><span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true" focusable="false"><rect x="6" y="6" width="4.2" height="20" fill="#0b0d12"></rect><rect x="6" y="21.8" width="20" height="4.2" fill="#0b0d12"></rect><rect x="17.8" y="6" width="8.2" height="8.2" fill="#0f7a52"></rect></svg></span><span>LiteGig</span></a>
       <nav class="nav" aria-label="Project links">
-        <a href="https://vercel-demo-eight-sepia.vercel.app/">Demo</a>
         <a href="docs.html">Docs</a>
         <a href="docs.html#security">Security</a>
         <a href="https://github.com/tanzir71/litegig">GitHub</a>
-=======
-      <a class="brand" href="index.html">LiteGig</a>
-      <nav class="nav" aria-label="Project links">
-        <a href="https://vercel-demo-eight-sepia.vercel.app/">Demo</a>
-        <a href="README.md">Overview</a>
-        <a href="SETUP.md">Setup</a>
-        <a href="SECURITY.md">Security</a>
-        <a class="github" href="https://github.com/tanzir71/litegig">GitHub</a>
->>>>>>> 5e1f8baf0ed6053cc0835349aafad7e3b72ca157
       </nav>
     </header>
 
     <section class="hero" aria-label="LiteGig overview">
       <div>
-        <p class="eyebrow">Self-hosted local gig operations</p>
-        <h1>Post requests, accept work, and track custody without handing the workflow to a marketplace.</h1>
-        <p class="lede">LiteGig is a PHP 8 and SQLite app for small local jobs: deliveries, errands, buy-and-bring requests, flyer drops, manual payment confirmation, attachments, ratings, and exportable records.</p>
+        <p class="eyebrow">Operations control for local handoffs</p>
+        <h1>Coordinate local gigs from intake to closeout without becoming a marketplace.</h1>
+        <p class="lede">LiteGig gives small operators a self-hosted queue for deliveries, errands, buy-and-bring requests, flyer drops, payment receipts, delivery OTPs, attachments, ratings, and exportable records.</p>
         <div class="actions">
-          <a class="btn primary" href="https://vercel-demo-eight-sepia.vercel.app/">Open demo</a>
-<<<<<<< HEAD
-          <a class="btn" href="docs.html">Read docs</a>
-          <a class="btn" href="https://vercel-demo-eight-sepia.vercel.app/">Track sample item</a>
+          <a class="btn primary" href="docs.html#deployment">Deploy shared-host package</a>
+          <a class="btn" href="docs.html">Read operator guide</a>
+          <a class="btn" href="https://github.com/tanzir71/litegig">View repository</a>
         </div>
         <div class="signals" aria-label="Product signals">
-          <div class="signal"><strong>Shared-host ready</strong><span>Single PHP entrypoint with SQLite.</span></div>
-          <div class="signal"><strong>Operational records</strong><span>Events, statuses, ratings, and CSV export.</span></div>
+          <div class="signal"><strong>Operator-owned</strong><span>Single PHP entrypoint with SQLite.</span></div>
+          <div class="signal"><strong>Audit-friendly records</strong><span>Events, statuses, ratings, and CSV export.</span></div>
           <div class="signal"><strong>Private by default</strong><span>CSRF, private uploads, and security headers.</span></div>
-=======
-          <a class="btn" href="SETUP.md">Read setup</a>
-        </div>
-        <div class="signals">
-          <span>Vercel demo live</span>
-          <span>SQLite-ready</span>
-          <span>CSRF protected</span>
-          <span>Private uploads</span>
->>>>>>> 5e1f8baf0ed6053cc0835349aafad7e3b72ca157
         </div>
       </div>
 
       <div class="workflow-panel" aria-label="Workflow preview">
-        <div class="panel-top"><span>Active custody path</span><span>Delivery request</span></div>
+        <div class="panel-top"><span>Active custody path</span><span>Work order</span></div>
         <div class="request-card">
           <div class="request-title">Deliver a small package</div>
-          <div class="request-meta">Requester: Sample Requester | Runner: Sample Runner | Fee: $15.00</div>
+          <div class="request-meta">Requester: Front desk | Runner: Assigned courier | Fee: $15.00</div>
           <div class="path" aria-label="Request state path">
             <div class="path-step done"><small>01</small><span>Posted</span></div>
             <div class="path-step done"><small>02</small><span>Accepted</span></div>
@@ -352,23 +328,22 @@
             <div class="path-step"><small>05</small><span>Rated</span></div>
           </div>
           <div class="next-action">
-            <div><strong>Next action</strong><span>Requester confirms manual payment or runner marks delivery.</span></div>
+            <div><strong>Next action</strong><span>Requester confirms payment or runner verifies the delivery OTP.</span></div>
             <span class="badge">Live state</span>
           </div>
         </div>
       </div>
     </section>
 
-<<<<<<< HEAD
     <section class="band" aria-labelledby="workflow-title">
       <div class="section-head">
-        <h2 id="workflow-title">A compact workflow for real handoffs.</h2>
-        <p>LiteGig keeps the app focused on the operational path: create a request, let a runner accept it, record pickup, confirm payment, mark delivery, rate the other side, and export the history.</p>
+        <h2 id="workflow-title">Built for coordinators who need the next move to be obvious.</h2>
+        <p>LiteGig keeps the operational path explicit: create a request, assign or let a runner accept it, record pickup, confirm payment, mark delivery, rate the other side, and export the history.</p>
       </div>
       <div class="grid">
         <article class="item">
-          <h3>Request queue</h3>
-          <p>Filter by status, task type, distance, and keyword search across titles, descriptions, people, and metadata.</p>
+          <h3>Queue and Open Pool</h3>
+          <p>Filter operational work by status, task type, distance, fee, and keyword search across titles, descriptions, people, and metadata.</p>
         </article>
         <article class="item">
           <h3>Schema-driven jobs</h3>
@@ -383,63 +358,40 @@
 
     <section class="band" aria-labelledby="model-title">
       <div class="section-head">
-        <h2 id="model-title">Clear hosting responsibilities.</h2>
-        <p>The repository can serve a static public layer and a PHP app package. Keep those responsibilities separate so deployment notes stay honest.</p>
+        <h2 id="model-title">One production direction: PHP and SQLite on infrastructure people already have.</h2>
+        <p>The repository packages the working app for shared hosting. Static pages explain the product; the PHP package serves the real queue.</p>
       </div>
       <div class="grid">
         <article class="item">
-          <h3>Static site</h3>
-          <p><code>index.html</code> and <code>docs.html</code> are navigable pages for repository hosting or GitHub Pages.</p>
+          <h3>Shared hosting</h3>
+          <p>Run <code>npm run deploy:shared</code>, upload the zip, extract it in cPanel, and create the first real admin.</p>
         </article>
         <article class="item">
           <h3>Interactive app</h3>
           <p><code>litegig.php</code> is the product entrypoint and needs a PHP 8 host with PDO SQLite enabled.</p>
         </article>
         <article class="item">
-          <h3>Deploy bundle</h3>
-          <p>The shared-host package is optional but complete: PHP file, env example, docs, and security scan tools.</p>
+          <h3>Low-cost operations</h3>
+          <p>SQLite keeps startup cost low, needs no managed database, and fits simple file backup workflows.</p>
         </article>
       </div>
     </section>
 
     <section class="band" aria-labelledby="setup-title">
       <div class="section-head">
-        <h2 id="setup-title">Start with sample data, then harden for production.</h2>
-        <p>Register the first account as admin, load sample data from the admin nav, and use the setup and security checklists before putting real users on it.</p>
+        <h2 id="setup-title">Create real admins, rotate seed access, and back up before inviting users.</h2>
+        <p>The Admin Console can create production admins, reset passwords, disable accounts, and audit every access change with reason and before/after snapshots.</p>
       </div>
       <div class="actions">
-        <a class="btn primary" href="https://vercel-demo-eight-sepia.vercel.app/">Open seeded demo</a>
-        <a class="btn" href="https://vercel-demo-eight-sepia.vercel.app/">Switch demo account</a>
+        <a class="btn primary" href="docs.html#first-deploy">First-deploy hardening</a>
+        <a class="btn" href="docs.html#deployment">Production paths</a>
         <a class="btn" href="docs.html#quick-start">Setup checklist</a>
       </div>
     </section>
 
     <footer class="bottom">
-      <span>LiteGig: local gig workflow, self-hosted.</span>
-      <span><a href="docs.html">Docs</a> | <a href="https://vercel-demo-eight-sepia.vercel.app/">Demo</a> | <a href="https://github.com/tanzir71/litegig">GitHub</a></span>
-=======
-    <section class="steps" aria-label="Project documents">
-      <article class="step">
-        <div class="num">01</div>
-        <h2>Try the demo</h2>
-        <p>Open the Vercel demo to switch requester/runner/admin views and walk a request through its custody path.</p>
-      </article>
-      <article class="step">
-        <div class="num">02</div>
-        <h2>Deploy on cPanel</h2>
-        <p>Upload the PHP app, create `.env`, set PHP 8+, and let LiteGig initialize SQLite on first visit.</p>
-      </article>
-      <article class="step">
-        <div class="num">03</div>
-        <h2>Harden production</h2>
-        <p>Review `SECURITY.md` for key rotation, logging, TLS, WAF, backups, and database migration notes.</p>
-      </article>
-    </section>
-
-    <footer class="bottom">
-      <span>LiteGig security hardening pass.</span>
-      <span><a href="https://vercel-demo-eight-sepia.vercel.app/">Demo</a> | <a href="README.md">README</a> | <a href="SECURITY.md">Security</a> | <a href="https://github.com/tanzir71/litegig">github.com/tanzir71/litegig</a></span>
->>>>>>> 5e1f8baf0ed6053cc0835349aafad7e3b72ca157
+      <span>LiteGig: local gig operations, self-hosted.</span>
+      <span><a href="docs.html">Docs</a> | <a href="https://github.com/tanzir71/litegig">GitHub</a></span>
     </footer>
   </main>
 </body>

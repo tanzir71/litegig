@@ -1,0 +1,31 @@
+title: LiteGig
+description: PHP and SQLite local-gig operations app
+
+exclude:
+  - app/
+  - tools/
+  - tests/
+  - vercel-demo/
+  - .github/
+  - node_modules/
+  - vendor/
+  - dist/
+  - packages/
+  - litegig_data/
+  - litegig_uploads/
+  - uploads/
+  - litegig.php
+  - health.php
+  - .env
+  - .env.example
+  - .htaccess
+  - package.json
+  - package-lock.json
+  - CODEX_BUILD_PLAN.md
+  - SETUP.md
+  - SECURITY.md
+  - monitoring/
+  - "*.zip"
+  - "*.db"
+  - "*.sqlite"
+  - "*.log"

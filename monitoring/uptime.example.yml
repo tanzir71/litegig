@@ -1,0 +1,13 @@
+checks:
+  - name: LiteGig health
+    url: https://your-domain.example/litegig/litegig.php?action=health
+    method: GET
+    expected_status: 200
+    expected_json:
+      ok: true
+    interval_seconds: 60
+    timeout_seconds: 10
+
+alerts:
+  # Route this to your monitoring provider, chat webhook, or paging system.
+  destination: replace-with-production-alert-channel

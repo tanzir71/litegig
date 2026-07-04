@@ -4,31 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LiteGig Demo</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 64 64%27%3E%3Crect width=%2764%27 height=%2764%27 rx=%2712%27 fill=%27%23111111%27/%3E%3Ctext x=%2732%27 y=%2739%27 font-size=%2721%27 text-anchor=%27middle%27 font-family=%27Arial%27 font-weight=%27700%27 fill=%27white%27%3ELG%3C/text%3E%3C/svg%3E">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect x=%276%27 y=%276%27 width=%274.2%27 height=%2720%27 fill=%27%230b0d12%27/%3E%3Crect x=%276%27 y=%2721.8%27 width=%2720%27 height=%274.2%27 fill=%27%230b0d12%27/%3E%3Crect x=%2717.8%27 y=%276%27 width=%278.2%27 height=%278.2%27 fill=%27%230f7a52%27/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="../styles/tokens.css">
   <style>
-    :root {
-      --bg: #f6f7f8;
-      --panel: #ffffff;
-      --fg: #111111;
-      --muted: #666c73;
-      --line: #e2e5e9;
-      --soft: #f1f3f5;
-      --ok: #0f766e;
-      --warn: #a16207;
-      --danger: #b42318;
-      --focus: #111111;
-    }
-
     * { box-sizing: border-box; }
-    html, body { margin: 0; min-height: 100%; }
+    html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
     body {
       background: var(--bg);
       color: var(--fg);
-      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 14px;
+      font-family: var(--sans);
+      font-size: 16px;
       line-height: 1.45;
     }
 
@@ -49,8 +34,10 @@
       justify-content: space-between;
       gap: 14px;
       border-bottom: 1px solid var(--line);
-      background: var(--panel);
-      padding: 12px 16px;
+      background: rgba(255,255,255,.86);
+      backdrop-filter: saturate(1.4) blur(10px);
+      -webkit-backdrop-filter: saturate(1.4) blur(10px);
+      padding: 13px 18px;
       position: sticky;
       top: 0;
       z-index: 5;
@@ -60,7 +47,8 @@
       display: inline-flex;
       align-items: center;
       gap: 10px;
-      font-weight: 800;
+      font-weight:700;
+      min-height: 44px;
       min-width: 150px;
     }
 
@@ -69,12 +57,8 @@
       place-items: center;
       width: 30px;
       height: 30px;
-      border-radius: 8px;
-      background: var(--fg);
-      color: #fff;
-      font-size: 12px;
-      font-weight: 800;
     }
+    .mark svg { display: block; }
 
     .topnav {
       display: flex;
@@ -98,8 +82,9 @@
     .panel {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 8px;
-      padding: 12px;
+      border-radius:0;
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
     }
 
     .panel + .panel { margin-top: 12px; }
@@ -108,8 +93,8 @@
       font-size: 13px;
       color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: .04em;
-      font-weight: 800;
+      letter-spacing: 0;
+      font-weight:700;
     }
 
     .stack { display: flex; flex-direction: column; gap: 8px; }
@@ -117,23 +102,24 @@
     .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .metric {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius:0;
       padding: 10px;
       background: #fff;
       min-height: 66px;
     }
 
-    .metric strong { display: block; font-size: 20px; line-height: 1; }
-    .metric span { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; }
-    label { display: block; margin: 0 0 5px; font-size: 12px; font-weight: 800; color: #34383d; }
+    .metric strong { display: block; font-size: 21px; line-height: 1; font-family: var(--mono); letter-spacing: 0; color: var(--ink); }
+    .metric span { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; }
+    label { display: block; margin: 0 0 6px; font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0; }
     input, select, textarea {
       width: 100%;
-      min-height: 40px;
+      min-height: 44px;
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius:0;
       background: #fff;
       color: var(--fg);
       padding: 9px 10px;
+      font-size: 16px;
       outline: none;
     }
 
@@ -143,30 +129,34 @@
     }
 
     input:focus, select:focus, textarea:focus {
-      border-color: var(--focus);
-      box-shadow: 0 0 0 1px var(--focus);
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
     }
 
     .btn {
-      min-height: 38px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
+      min-height: 44px;
+      border: 1px solid var(--line-2);
+      border-radius:0;
       background: #fff;
       color: var(--fg);
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      padding: 8px 10px;
-      font-weight: 800;
+      padding: 9px 14px;
+      font-weight: 600;
       cursor: pointer;
       white-space: nowrap;
+      transition: background .15s ease, border-color .15s ease, box-shadow .15s ease, color .15s ease;
     }
 
-    .btn.primary { border-color: var(--fg); background: var(--fg); color: #fff; }
-    .btn.danger { border-color: rgba(180,35,24,.2); color: var(--danger); }
+    .btn:hover { border-color: var(--ink); background: var(--soft); }
+    .btn.primary { border-color: var(--fg); background: var(--fg); color: #fff; box-shadow: var(--shadow-sm); }
+    .btn.primary:hover { background: #23272e; border-color: #23272e; }
+    .btn.danger { border-color: rgba(192,54,44,.28); color: var(--danger); background: #fff; }
+    .btn.danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
     .btn:disabled { opacity: .45; cursor: not-allowed; }
-    .btn.small { min-height: 32px; padding: 6px 8px; font-size: 12px; }
+    .btn.small { min-height: 44px; padding: 8px 10px; font-size: 13px; }
     .tabs {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -174,14 +164,19 @@
     }
 
     .tab {
-      min-height: 36px;
-      border: 1px solid var(--line);
-      border-radius: 8px;
+      min-height: 44px;
+      border: 1px solid var(--line-2);
+      border-radius:0;
       background: #fff;
-      font-weight: 800;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0;
+      padding: 0 4px;
       cursor: pointer;
+      transition: background .15s ease, border-color .15s ease, color .15s ease;
     }
 
+    .tab:hover { border-color: var(--ink); }
     .tab.active { border-color: var(--fg); background: var(--fg); color: #fff; }
     .queue {
       display: flex;
@@ -192,7 +187,7 @@
 
     .ticket {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius:0;
       background: #fff;
       padding: 12px;
       cursor: pointer;
@@ -208,8 +203,11 @@
 
     .ticket h2 {
       margin: 0;
+      color: var(--ink);
       font-size: 15px;
       line-height: 1.25;
+      letter-spacing: 0;
+      font-weight: 600;
     }
 
     .meta {
@@ -219,8 +217,11 @@
 
     .meta + .meta { margin-top: 4px; }
     .price {
-      font-weight: 900;
-      font-size: 16px;
+      font-weight: 700;
+      font-family: var(--mono);
+      letter-spacing: 0;
+      color: var(--ink);
+      font-size: 15px;
       white-space: nowrap;
     }
 
@@ -229,21 +230,24 @@
       align-items: center;
       min-height: 24px;
       border: 1px solid var(--line);
-      border-radius: 999px;
+      border-radius:0;
       background: var(--soft);
       padding: 3px 8px;
       font-size: 12px;
-      font-weight: 800;
+      font-weight:700;
       white-space: nowrap;
     }
 
-    .pill.ok { color: var(--ok); background: rgba(15,118,110,.08); border-color: rgba(15,118,110,.18); }
-    .pill.warn { color: var(--warn); background: rgba(161,98,7,.08); border-color: rgba(161,98,7,.18); }
-    .pill.danger { color: var(--danger); background: rgba(180,35,24,.08); border-color: rgba(180,35,24,.18); }
+    .pill.ok { color: var(--accent-ink); background: var(--accent-soft); border-color: rgba(15,122,82,.2); }
+    .pill.warn { color: var(--warn); background: rgba(154,91,0,.08); border-color: rgba(154,91,0,.2); }
+    .pill.danger { color: var(--danger); background: rgba(192,54,44,.08); border-color: rgba(192,54,44,.2); }
     .detail-title {
       margin: 0;
-      font-size: 22px;
-      line-height: 1.15;
+      color: var(--ink);
+      font-size: 23px;
+      line-height: 1.14;
+      letter-spacing: 0;
+      font-weight: 700;
     }
 
     .custody {
@@ -255,16 +259,16 @@
 
     .step {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius:0;
       min-height: 62px;
       background: #fff;
       padding: 8px;
     }
 
-    .step.done { border-color: rgba(15,118,110,.24); background: rgba(15,118,110,.07); }
+    .step.done { border-color: rgba(15,122,82,.24); background: var(--accent-soft); }
     .step.current { border-color: var(--fg); box-shadow: inset 0 0 0 1px var(--fg); }
-    .step small { display: block; color: var(--muted); font-size: 10px; font-weight: 900; text-transform: uppercase; }
-    .step span { display: block; margin-top: 5px; font-size: 12px; font-weight: 800; }
+    .step small { display: block; color: var(--muted); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0; }
+    .step span { display: block; margin-top: 5px; font-size: 11.5px; font-weight: 600; letter-spacing: 0; }
     .fields {
       display: grid;
       grid-template-columns: 1fr;
@@ -288,7 +292,7 @@
     .event span { display: block; color: var(--muted); font-size: 12px; }
     .notice {
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius:0;
       background: var(--soft);
       padding: 10px;
       color: var(--muted);
@@ -297,7 +301,7 @@
 
     .empty {
       border: 1px dashed var(--line);
-      border-radius: 8px;
+      border-radius:0;
       padding: 28px 12px;
       text-align: center;
       color: var(--muted);
@@ -322,7 +326,7 @@
   <div class="app">
     <header class="top">
       <a class="brand" href="https://tanzir71.github.io/litegig/" aria-label="LiteGig landing">
-        <span class="mark">LG</span>
+        <span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32" width="28" height="28" aria-hidden="true" focusable="false"><rect x="6" y="6" width="4.2" height="20" fill="#0b0d12"></rect><rect x="6" y="21.8" width="20" height="4.2" fill="#0b0d12"></rect><rect x="17.8" y="6" width="8.2" height="8.2" fill="#0f7a52"></rect></svg></span>
         <span>LiteGig Demo</span>
       </a>
       <nav class="topnav" aria-label="Demo links">

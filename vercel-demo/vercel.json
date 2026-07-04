@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/styles/:path*",
+      "destination": "https://tanzir71.github.io/litegig/styles/:path*"
+    }
+  ],
   "cleanUrls": true,
   "trailingSlash": false
 }

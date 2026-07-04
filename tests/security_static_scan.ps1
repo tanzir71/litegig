@@ -2,7 +2,22 @@ param(
     [string]$Path = (Join-Path $PSScriptRoot '..\litegig.php')
 )
 
-$source = Get-Content -LiteralPath $Path -Raw
+function Get-PHPSources {
+    param([string]$InputPath)
+
+    $root = Split-Path -Parent $InputPath
+    $files = @($InputPath)
+    $appPath = Join-Path $root 'app'
+    if (Test-Path -LiteralPath $appPath -PathType Container) {
+        $files += Get-ChildItem -LiteralPath $appPath -Filter '*.php' -Recurse | ForEach-Object { $_.FullName }
+    }
+
+    $files | Sort-Object -Unique
+}
+
+$source = (Get-PHPSources -InputPath $Path | ForEach-Object {
+    Get-Content -LiteralPath $_ -Raw
+}) -join "`n"
 $failures = @()
 
 function Assert-Contains {

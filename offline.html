@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Offline · LiteGig</title>
+  <link rel="stylesheet" href="styles/tokens.css">
+  <style>
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;overflow-x:hidden;background:var(--bg);color:var(--fg);font-family:var(--sans)}
+    body{min-height:100vh;display:grid;place-items:center;padding:18px;font-size:16px}
+    main{width:min(100%,520px);border:1px solid var(--line);background:var(--panel);box-shadow:var(--shadow-sm);padding:22px}
+    h1{margin:0;color:var(--ink);font-size:22px;line-height:1.15;letter-spacing:0}
+    p{margin:10px 0 0;color:var(--muted);font-size:15px;line-height:1.5}
+    a{display:inline-flex;align-items:center;justify-content:center;min-height:44px;margin-top:16px;padding:11px 16px;border:1px solid var(--fg);background:var(--fg);color:#fff;text-decoration:none;font-weight:600}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>LiteGig is offline</h1>
+    <p>Previously opened pages may still be available. Runner pickup and delivery actions submitted from the job sheet are queued on this device and replay when the connection returns.</p>
+    <a href="litegig.php?action=runner_sheet">Open job sheet</a>
+  </main>
+</body>
+</html>

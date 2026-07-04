@@ -1,0 +1,23 @@
+{
+  "name": "LiteGig",
+  "short_name": "LiteGig",
+  "description": "Self-hosted local gig operations for requesters and runners.",
+  "start_url": "litegig.php?action=runner_sheet",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f8f9",
+  "theme_color": "#0b0d12",
+  "icons": [
+    {
+      "src": "brand/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "brand/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

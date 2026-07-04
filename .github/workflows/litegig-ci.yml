@@ -1,0 +1,98 @@
+name: LiteGig CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite, sqlite3, fileinfo
+          coverage: none
+
+      - name: PHP syntax
+        run: |
+          php -l litegig.php
+          find app -name '*.php' -print0 | xargs -0 -n1 php -l
+          find tests -name '*.php' -print0 | xargs -0 -n1 php -l
+          find tools -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: JavaScript syntax
+        run: |
+          node --check litegig-pwa.js
+          node --check litegig-sw.js
+          node --check tools/render_smoke.js
+
+      - name: App tests
+        run: |
+          php tests/authz_matrix.php
+          php tests/status_transitions.php
+          php tests/domain_units.php
+          php tests/task_types.php
+          php tests/attachments.php
+          php tests/user_status.php
+          php tests/admin_access.php
+          php tests/privacy.php
+          php tests/notifications.php
+          php tests/m3_flows.php
+          php tests/admin_reporting.php
+          php tests/migrations.php
+          php tests/backups.php
+          php tests/formatting.php
+          php tests/i18n.php
+          php tests/production_audit.php
+          php tests/health.php
+          php tests/performance_static.php
+          php tests/accessibility_static.php
+          php tests/mobile_static.php
+          php tests/pwa_static.php
+
+      - name: Access-control flow smoke
+        run: |
+          tmpdir="$(mktemp -d)"
+          mkdir -p "$tmpdir/data" "$tmpdir/uploads" "$tmpdir/backups"
+          LITEGIG_DATA_DIR="$tmpdir/data" \
+          LITEGIG_DB_PATH="$tmpdir/data/litegig.db" \
+          LITEGIG_UPLOAD_DIR="$tmpdir/uploads" \
+          LITEGIG_BACKUP_DIR="$tmpdir/backups" \
+          LITEGIG_SECURITY_HEADERS=false \
+          php -S 127.0.0.1:8765 -t . > "$tmpdir/server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; rm -rf "$tmpdir"' EXIT
+          sleep 1
+          php tools/access_control_flow.php http://127.0.0.1:8765
+
+      - name: HTTP smoke and load checks
+        run: |
+          tmpdir="$(mktemp -d)"
+          mkdir -p "$tmpdir/data" "$tmpdir/uploads" "$tmpdir/backups"
+          LITEGIG_DATA_DIR="$tmpdir/data" \
+          LITEGIG_DB_PATH="$tmpdir/data/litegig.db" \
+          LITEGIG_UPLOAD_DIR="$tmpdir/uploads" \
+          LITEGIG_BACKUP_DIR="$tmpdir/backups" \
+          LITEGIG_SECURITY_HEADERS=false \
+          php -S 127.0.0.1:8765 -t . > "$tmpdir/server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true; rm -rf "$tmpdir"' EXIT
+          sleep 1
+          php tools/http_smoke.php http://127.0.0.1:8765
+          php tools/load_smoke.php http://127.0.0.1:8765 20
+          php tools/e2e_happy_path.php http://127.0.0.1:8765
+          node tools/render_smoke.js http://127.0.0.1:8765
+
+      - name: Security and manifest checks
+        run: |
+          php tools/validate_pages_config.php
+          php tools/security_scan.php litegig.php
+          php tools/secret_scan.php
+          php tools/dependency_scan.php
+          php -r 'json_decode(file_get_contents("manifest.webmanifest"), true, 512, JSON_THROW_ON_ERROR); echo "manifest JSON OK\n";'
+          npm run deploy:shared

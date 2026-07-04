@@ -1,0 +1,15 @@
+DirectoryIndex litegig.php index.html
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^(?:app|tools|tests|litegig_data|litegig_uploads|uploads|dist|packages|node_modules|vendor)(?:/|$) - [F,L]
+</IfModule>
+
+<FilesMatch "^(\.env|.*\.db|.*\.sqlite|.*\.log|.*\.zip|composer\.(json|lock)|package(-lock)?\.json)$">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set Referrer-Policy "same-origin"
+</IfModule>
