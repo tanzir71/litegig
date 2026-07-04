@@ -2,15 +2,9 @@
 
 LiteGig production is the PHP + SQLite app. Static demos are maintainer-only and are not part of user deployment.
 
-## 1. Build the Shared-Host Package
+## 1. Use the Shared-Host Zip
 
-From the repository:
-
-```sh
-npm run deploy:shared
-```
-
-Upload `dist/litegig-shared-*.zip` to cPanel or shared hosting, extract it into a folder such as `public_html/litegig/`, then follow the package `README.txt`.
+Get the provided `dist/litegig-shared-*.zip` artifact, upload it to cPanel or shared hosting, extract it into a folder such as `public_html/litegig/`, then follow the package `README.txt`.
 
 The package contains only runtime files: `.htaccess`, `.env.example`, `litegig.php`, `health.php`, `app/`, `brand/`, `styles/`, PWA files, selected runtime tools, monitoring example, and setup/security notes.
 
@@ -126,9 +120,9 @@ https://your-domain.example/litegig/health.php
 
 ## 8. Other Production Paths
 
-VPS/SSH: build the package, then `rsync -avz dist/shared-host/litegig/ user@host:/var/www/litegig/`.
+VPS/SSH: extract the provided shared-host zip, then `rsync -avz litegig/ user@host:/var/www/litegig/`.
 
-Vercel: run `npm run package:vercel`, extract `dist/litegig-vercel.zip`, upload the extracted fileset to GitHub, import it in Vercel, and deploy. Do not upload `dist/litegig-shared-*.zip` to Vercel.
+Vercel: get the provided `dist/litegig-vercel.zip`, extract it, upload the extracted fileset to GitHub, import it in Vercel, and deploy. Do not upload `dist/litegig-shared-*.zip` to Vercel.
 
 LLM-assisted: give the deployment agent this prompt:
 

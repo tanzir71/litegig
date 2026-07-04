@@ -45,7 +45,8 @@
       align-items: center;
       justify-content: space-between;
       gap: 18px;
-      padding: 14px 0;
+      margin-inline: calc(50% - 50vw);
+      padding: 14px max(16px, calc((100vw - 1120px) / 2));
       background: rgba(255,255,255,.86);
       backdrop-filter: saturate(1.4) blur(10px);
       -webkit-backdrop-filter: saturate(1.4) blur(10px);
@@ -185,12 +186,13 @@
     .card span { display: block; color: var(--muted); font-size: 13px; }
     .steps {
       display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 6px;
+      grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+      gap: 8px;
       margin-top: 12px;
     }
 
     .step {
+      min-width: 0;
       min-height: 66px;
       border: 1px solid var(--line);
       border-radius:0;
@@ -199,7 +201,7 @@
     }
 
     .step small { display: block; color: var(--muted); font-size: 11px; font-weight:700; text-transform: uppercase; }
-    .step span { display: block; margin-top: 4px; font-size: 12px; font-weight:700; }
+    .step span { display: block; margin-top: 4px; font-size: 12px; font-weight:700; line-height: 1.24; overflow-wrap: anywhere; }
     .bottom {
       display: flex;
       align-items: center;
@@ -219,14 +221,13 @@
       aside { position: static; border-right: 0; border-bottom: 1px solid var(--line); padding: 0 0 14px; }
       aside nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
       h1 { font-size: 34px; }
-      .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     }
 
     @media (max-width: 580px) {
       .top { align-items: flex-start; flex-direction: column; }
       .nav { justify-content: flex-start; }
       h1 { font-size: 30px; }
-      .grid, aside nav, .steps { grid-template-columns: 1fr; }
+      .grid, aside nav { grid-template-columns: 1fr; }
       .actions .btn { width: 100%; }
     }
   </style>
@@ -277,8 +278,8 @@
           <h2>Fast start</h2>
           <p>Pick the artifact for the host. Do not send the shared-host PHP zip to Vercel, and do not treat the Vercel zip as the PHP backend package.</p>
           <div class="grid">
-            <div class="card"><strong>1. Shared hosting</strong><span>Run <code>npm run package:shared</code>, upload <code>dist/litegig-shared-*.zip</code>, extract it, and open <code>/health.php</code>.</span></div>
-            <div class="card"><strong>2. Vercel</strong><span>Run <code>npm run package:vercel</code>, extract <code>dist/litegig-vercel.zip</code>, import the extracted folder in Vercel, and deploy.</span></div>
+            <div class="card"><strong>1. Shared hosting</strong><span>Use the provided <code>dist/litegig-shared-*.zip</code>, upload it, extract it, and open <code>/health.php</code>.</span></div>
+            <div class="card"><strong>2. Vercel</strong><span>Use the provided <code>dist/litegig-vercel.zip</code>, extract it, import the extracted folder in Vercel, and deploy.</span></div>
             <div class="card"><strong>3. Maintainer demo</strong><span>The live demo is already deployed at <code>vercel-demo-eight-sepia.vercel.app</code>.</span></div>
             <div class="card"><strong>4. GitHub Pages</strong><span>Only <code>index.html</code>, <code>docs.html</code>, static assets, and the landing surface belong here.</span></div>
           </div>
@@ -298,33 +299,45 @@
           <h2>Shared-host zip</h2>
           <p>Shared hosting should be a zip extraction.</p>
           <div class="steps" aria-label="Shared hosting zip steps">
-            <div class="step"><small>01</small><span>Build zip</span></div>
+            <div class="step"><small>01</small><span>Get zip</span></div>
             <div class="step"><small>02</small><span>Upload</span></div>
             <div class="step"><small>03</small><span>Extract</span></div>
             <div class="step"><small>04</small><span>Open health</span></div>
             <div class="step"><small>05</small><span>Create admin</span></div>
             <div class="step"><small>06</small><span>Run backup</span></div>
           </div>
-          <pre><code>npm run package:shared</code></pre>
+          <pre><code>dist/litegig-shared-*.zip</code></pre>
           <ul>
-            <li>Upload <code>dist/litegig-shared-*.zip</code> to the domain or subdomain folder.</li>
+            <li>Get the provided <code>dist/litegig-shared-*.zip</code> artifact.</li>
+            <li>Upload the zip to the domain or subdomain folder in cPanel/File Manager.</li>
             <li>Extract it so <code>litegig.php</code>, <code>health.php</code>, <code>.env.example</code>, <code>app/</code>, <code>brand/</code>, <code>styles/</code>, and <code>tools/</code> are in the app folder.</li>
+            <li>If extraction creates a <code>litegig</code> folder, keep it for <code>/litegig</code> installs or move the files inside it up to the web root.</li>
+            <li>Enable PHP 8+ with <code>pdo_sqlite</code>, <code>sqlite3</code>, and <code>fileinfo</code>.</li>
             <li>Open <code>/health.php</code>, then <code>/litegig.php</code>.</li>
+            <li>Delete the uploaded zip after extraction.</li>
           </ul>
-          <div class="note">That is the shared-hosting path: use the generated zip. SSH, env edits, and cron setup are follow-up operations after the files are in place.</div>
+          <div class="note">That is the shared-hosting path: deploy the provided zip. SSH, env edits, and cron setup are follow-up operations after the files are in place.</div>
         </section>
 
         <section id="vercel">
           <h2>Vercel artifact</h2>
           <p>Vercel gets its own artifact. Do not upload <code>dist/litegig-shared-*.zip</code> to Vercel.</p>
-          <pre><code>npm run package:vercel</code></pre>
+          <pre><code>dist/litegig-vercel.zip</code></pre>
           <div class="grid">
             <div class="card"><strong>Artifact</strong><span><code>dist/litegig-vercel.zip</code> contains <code>index.html</code>, <code>styles/tokens.css</code>, <code>vercel.json</code>, <code>package.json</code>, and <code>README.md</code>.</span></div>
-            <div class="card"><strong>Dashboard flow</strong><span>Extract the zip, put the contents in GitHub, import the repo in Vercel, choose Other or No Framework, and deploy.</span></div>
-            <div class="card"><strong>CLI flow</strong><span>Extract the zip, enter the extracted folder, and run <code>npx vercel@latest --prod</code>.</span></div>
+            <div class="card"><strong>Dashboard flow</strong><span>Extract the provided zip, put the contents in GitHub, import the repo in Vercel, choose Other or No Framework, and deploy.</span></div>
+            <div class="card"><strong>CLI flow</strong><span>Extract the provided zip, enter the extracted folder, and run <code>npx vercel@latest --prod</code>.</span></div>
             <div class="card"><strong>Live demo</strong><span>The maintained production demo is <code>https://vercel-demo-eight-sepia.vercel.app</code>.</span></div>
           </div>
-          <p>The Vercel fileset is intentionally separate so Vercel deployment can evolve without dragging in PHP runtime assumptions or shared-host packaging rules.</p>
+          <ul>
+            <li>Get the provided <code>dist/litegig-vercel.zip</code> artifact.</li>
+            <li>Extract it on your computer.</li>
+            <li>Confirm <code>index.html</code>, <code>styles/</code>, <code>vercel.json</code>, <code>package.json</code>, and <code>README.md</code> are at the top level.</li>
+            <li>Upload those extracted files to a new GitHub repository.</li>
+            <li>In Vercel, choose <code>Add New -&gt; Project</code> and import that repository.</li>
+            <li>Keep the framework as Other or No Framework, leave build settings blank, and deploy.</li>
+          </ul>
+          <p>The Vercel fileset is intentionally separate so Vercel deployment does not drag in PHP runtime assumptions or shared-host packaging rules.</p>
         </section>
 
         <section id="first-run">
@@ -381,7 +394,7 @@ After a PHP deploy, verify /health.php, create a production admin, rotate seed a
             <li>Run <code>php tools/maintenance.php --apply --backup</code> from cron after the PHP app is live.</li>
             <li>Run <code>php tools/production_audit.php</code> before handing a PHP deployment to operators.</li>
             <li>Use <code>npm run maintainer:deploy:demo</code> only for the maintained Vercel demo project.</li>
-            <li>Use <code>npm run package:vercel</code> when a deployer needs a portable Vercel zip.</li>
+            <li>Hand deployers <code>dist/litegig-shared-*.zip</code> for PHP hosts or <code>dist/litegig-vercel.zip</code> for Vercel.</li>
           </ul>
         </section>
 

@@ -10,21 +10,16 @@ The intended backend is **PHP + SQLite**. That is the simplest stack for LiteGig
 
 The browser/static demo under `vercel-demo/` is maintainer-only. It is useful for previewing workflow copy and UI states, but it is not production, has no backend authority, and should not appear in user deployment paths.
 
-## Deployment Commands
+## Release Artifact Commands
+
+Maintainers build the ready-to-deploy artifacts before handing them to operators.
 
 ```sh
 npm run deploy:shared
-```
-
-This stages the PHP runtime and creates `dist/litegig-shared-*.zip` for upload/extract on cPanel or another shared host. The package includes `.htaccess`, `.env.example`, `litegig.php`, `health.php`, app modules, assets, runtime tools, monitoring example, and `README.txt`.
-
-Build the Vercel-ready artifact separately:
-
-```sh
 npm run package:vercel
 ```
 
-This creates `dist/litegig-vercel.zip` from the Vercel fileset. Do not upload the shared-host PHP zip to Vercel.
+This creates `dist/litegig-shared-*.zip` for PHP hosts and `dist/litegig-vercel.zip` for Vercel. Do not upload the shared-host PHP zip to Vercel.
 
 Maintainers can deploy the live Vercel demo directly:
 
@@ -34,11 +29,11 @@ npm run maintainer:deploy:demo
 
 ## Production Paths
 
-Shared hosting: run `npm run deploy:shared`, upload the generated zip, extract it into `public_html/litegig`, copy `.env.example` to `.env`, create the first real admin, run maintenance/backup, and verify `health.php`.
+Shared hosting: use the provided `dist/litegig-shared-*.zip`, upload it, extract it into `public_html/litegig`, copy `.env.example` to `.env`, create the first real admin, run maintenance/backup, and verify `health.php`.
 
-VPS/SSH: run `npm run deploy:shared`, then `rsync` the staged `dist/shared-host/litegig/` directory to the server. Keep `.env`, data, uploads, backups, and logs outside public links where possible.
+VPS/SSH: extract the provided shared-host zip, then `rsync` the extracted runtime folder to the server. Keep `.env`, data, uploads, backups, and logs outside public links where possible.
 
-Vercel: run `npm run package:vercel`, extract `dist/litegig-vercel.zip`, import the extracted files into Vercel, and deploy. This is a separate artifact from the PHP shared-host package.
+Vercel: use the provided `dist/litegig-vercel.zip`, extract it, import the extracted files into Vercel, and deploy. This is a separate artifact from the PHP shared-host package.
 
 LLM-assisted deployment prompt:
 
