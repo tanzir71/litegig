@@ -5,6 +5,7 @@
   "scripts": {
     "deploy:shared": "php tools/package_shared.php",
     "package:shared": "php tools/package_shared.php",
+    "package:vercel": "php tools/package_vercel.php",
     "maintenance": "php tools/maintenance.php",
     "pages:validate": "php tools/validate_pages_config.php",
     "maintainer:deploy:demo": "npx vercel@latest vercel-demo --prod"

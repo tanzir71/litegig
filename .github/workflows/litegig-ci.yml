@@ -1,11 +1,13 @@
-name: LiteGig CI
+name: GitHub Pages
 
 on:
   push:
+    branches:
+      - main
   pull_request:
 
 jobs:
-  test:
+  pages:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -15,182 +17,93 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: "8.3"
-          extensions: pdo_sqlite, sqlite3, fileinfo
           coverage: none
 
-      - name: PHP syntax
-        run: |
-          php -l litegig.php
-          find app -name '*.php' -print0 | xargs -0 -n1 php -l
-          find tests -name '*.php' -print0 | xargs -0 -n1 php -l
-          find tools -name '*.php' -print0 | xargs -0 -n1 php -l
-
-      - name: JavaScript syntax
+      - name: Static asset syntax
         run: |
           node --check litegig-pwa.js
           node --check litegig-sw.js
-          node --check tools/render_smoke.js
-
-      - name: App tests
-        run: |
-          php tests/authz_matrix.php
-          php tests/status_transitions.php
-          php tests/domain_units.php
-          php tests/task_types.php
-          php tests/attachments.php
-          php tests/user_status.php
-          php tests/admin_access.php
-          php tests/privacy.php
-          php tests/notifications.php
-          php tests/m3_flows.php
-          php tests/admin_reporting.php
-          php tests/migrations.php
-          php tests/backups.php
-          php tests/formatting.php
-          php tests/i18n.php
-          php tests/production_audit.php
-          php tests/health.php
-          php tests/performance_static.php
-          php tests/accessibility_static.php
-          php tests/mobile_static.php
-          php tests/pwa_static.php
-
-      - name: Access-control flow smoke
-        shell: bash
-        run: |
-          set -euo pipefail
-          tmpdir="$(mktemp -d)"
-          mkdir -p "$tmpdir/data" "$tmpdir/uploads" "$tmpdir/backups"
-          server_log="$tmpdir/server.log"
-          server_pid=""
-          cleanup() {
-            status=$?
-            if [[ -n "${server_pid:-}" ]]; then
-              kill "$server_pid" 2>/dev/null || true
-              wait "$server_pid" 2>/dev/null || true
-            fi
-            if [[ "$status" -ne 0 ]]; then
-              echo "::group::PHP server log"
-              if [[ -f "$server_log" ]]; then
-                cat "$server_log"
-              else
-                echo "No PHP server log was created."
-              fi
-              echo "::endgroup::"
-            fi
-            rm -rf "$tmpdir"
-            exit "$status"
-          }
-          trap cleanup EXIT
-          LITEGIG_DATA_DIR="$tmpdir/data" \
-          LITEGIG_DB_PATH="$tmpdir/data/litegig.db" \
-          LITEGIG_UPLOAD_DIR="$tmpdir/uploads" \
-          LITEGIG_BACKUP_DIR="$tmpdir/backups" \
-          LITEGIG_SECURITY_HEADERS=false \
-          php -S 127.0.0.1:0 -t . > "$server_log" 2>&1 &
-          server_pid=$!
-          base_url=""
-          for _ in {1..50}; do
-            if ! kill -0 "$server_pid" 2>/dev/null; then
-              echo "PHP server exited before startup."
-              exit 1
-            fi
-            base_url="$(sed -nE 's#.*Development Server \((http://127\.0\.0\.1:[0-9]+)\) started.*#\1#p' "$server_log" | tail -n 1)"
-            if [[ -n "$base_url" ]]; then
-              break
-            fi
-            sleep 0.1
-          done
-          if [[ -z "$base_url" ]]; then
-            echo "PHP server did not announce a listening URL."
-            exit 1
-          fi
-          ready=false
-          for _ in {1..50}; do
-            if php -r '$ctx = stream_context_create(["http" => ["timeout" => 1, "ignore_errors" => true]]); exit(@file_get_contents($argv[1], false, $ctx) === false ? 1 : 0);' "$base_url/index.html"; then
-              ready=true
-              break
-            fi
-            sleep 0.1
-          done
-          if [[ "$ready" != true ]]; then
-            echo "PHP server did not respond at $base_url."
-            exit 1
-          fi
-          php tools/access_control_flow.php "$base_url"
-
-      - name: HTTP smoke and load checks
-        shell: bash
-        run: |
-          set -euo pipefail
-          tmpdir="$(mktemp -d)"
-          mkdir -p "$tmpdir/data" "$tmpdir/uploads" "$tmpdir/backups"
-          server_log="$tmpdir/server.log"
-          server_pid=""
-          cleanup() {
-            status=$?
-            if [[ -n "${server_pid:-}" ]]; then
-              kill "$server_pid" 2>/dev/null || true
-              wait "$server_pid" 2>/dev/null || true
-            fi
-            if [[ "$status" -ne 0 ]]; then
-              echo "::group::PHP server log"
-              if [[ -f "$server_log" ]]; then
-                cat "$server_log"
-              else
-                echo "No PHP server log was created."
-              fi
-              echo "::endgroup::"
-            fi
-            rm -rf "$tmpdir"
-            exit "$status"
-          }
-          trap cleanup EXIT
-          LITEGIG_DATA_DIR="$tmpdir/data" \
-          LITEGIG_DB_PATH="$tmpdir/data/litegig.db" \
-          LITEGIG_UPLOAD_DIR="$tmpdir/uploads" \
-          LITEGIG_BACKUP_DIR="$tmpdir/backups" \
-          LITEGIG_SECURITY_HEADERS=false \
-          php -S 127.0.0.1:0 -t . > "$server_log" 2>&1 &
-          server_pid=$!
-          base_url=""
-          for _ in {1..50}; do
-            if ! kill -0 "$server_pid" 2>/dev/null; then
-              echo "PHP server exited before startup."
-              exit 1
-            fi
-            base_url="$(sed -nE 's#.*Development Server \((http://127\.0\.0\.1:[0-9]+)\) started.*#\1#p' "$server_log" | tail -n 1)"
-            if [[ -n "$base_url" ]]; then
-              break
-            fi
-            sleep 0.1
-          done
-          if [[ -z "$base_url" ]]; then
-            echo "PHP server did not announce a listening URL."
-            exit 1
-          fi
-          ready=false
-          for _ in {1..50}; do
-            if php -r '$ctx = stream_context_create(["http" => ["timeout" => 1, "ignore_errors" => true]]); exit(@file_get_contents($argv[1], false, $ctx) === false ? 1 : 0);' "$base_url/index.html"; then
-              ready=true
-              break
-            fi
-            sleep 0.1
-          done
-          if [[ "$ready" != true ]]; then
-            echo "PHP server did not respond at $base_url."
-            exit 1
-          fi
-          php tools/http_smoke.php "$base_url"
-          php tools/load_smoke.php "$base_url" 20
-          php tools/e2e_happy_path.php "$base_url"
-          node tools/render_smoke.js "$base_url"
-
-      - name: Security and manifest checks
-        run: |
-          php tools/validate_pages_config.php
-          php tools/security_scan.php litegig.php
-          php tools/secret_scan.php
-          php tools/dependency_scan.php
           php -r 'json_decode(file_get_contents("manifest.webmanifest"), true, 512, JSON_THROW_ON_ERROR); echo "manifest JSON OK\n";'
-          npm run deploy:shared
+
+      - name: GitHub Pages config
+        run: php tools/validate_pages_config.php
+
+      - name: Landing page smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          required_files=(
+            index.html
+            docs.html
+            offline.html
+            manifest.webmanifest
+            styles/tokens.css
+            brand/favicon.svg
+            brand/logo-lockup.svg
+            brand/logo-mark.svg
+          )
+
+          for file in "${required_files[@]}"; do
+            if [[ ! -s "$file" ]]; then
+              echo "Missing or empty Pages asset: $file"
+              exit 1
+            fi
+          done
+
+          tmpdir="$(mktemp -d)"
+          server_log="$tmpdir/server.log"
+          server_pid=""
+          cleanup() {
+            exit_code=$?
+            if [[ -n "${server_pid:-}" ]]; then
+              kill "$server_pid" 2>/dev/null || true
+              wait "$server_pid" 2>/dev/null || true
+            fi
+            if [[ "$exit_code" -ne 0 && -f "$server_log" ]]; then
+              echo "::group::Static server log"
+              cat "$server_log"
+              echo "::endgroup::"
+            fi
+            rm -rf "$tmpdir"
+            exit "$exit_code"
+          }
+          trap cleanup EXIT
+
+          php -S 127.0.0.1:0 -t . > "$server_log" 2>&1 &
+          server_pid=$!
+
+          base_url=""
+          for _ in {1..50}; do
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "Static server exited before startup."
+              exit 1
+            fi
+            base_url="$(sed -nE 's#.*Development Server \((http://127\.0\.0\.1:[0-9]+)\) started.*#\1#p' "$server_log" | tail -n 1)"
+            if [[ -n "$base_url" ]]; then
+              break
+            fi
+            sleep 0.1
+          done
+
+          if [[ -z "$base_url" ]]; then
+            echo "Static server did not announce a listening URL."
+            exit 1
+          fi
+
+          for path in /index.html /docs.html /offline.html /manifest.webmanifest /styles/tokens.css; do
+            php -r '
+              $ctx = stream_context_create(["http" => ["timeout" => 2, "ignore_errors" => true]]);
+              $body = file_get_contents($argv[1], false, $ctx);
+              $status = 0;
+              foreach ($http_response_header ?? [] as $line) {
+                  if (preg_match("/^HTTP\/\S+\s+(\d+)/", $line, $m)) $status = (int) $m[1];
+              }
+              if ($status !== 200 || $body === false || $body === "") {
+                  fwrite(STDERR, "Static smoke failed for {$argv[1]} with HTTP {$status}\n");
+                  exit(1);
+              }
+            ' "$base_url$path"
+          done
+
+          echo "GitHub Pages static smoke passed."

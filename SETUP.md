@@ -128,10 +128,12 @@ https://your-domain.example/litegig/health.php
 
 VPS/SSH: build the package, then `rsync -avz dist/shared-host/litegig/ user@host:/var/www/litegig/`.
 
+Vercel: run `npm run package:vercel`, extract `dist/litegig-vercel.zip`, upload the extracted fileset to GitHub, import it in Vercel, and deploy. Do not upload `dist/litegig-shared-*.zip` to Vercel.
+
 LLM-assisted: give the deployment agent this prompt:
 
 ```text
 Deploy LiteGig as PHP 8 + SQLite. Use dist/litegig-shared-*.zip or dist/shared-host/litegig. Do not deploy tests, node_modules, dist, .git, local DBs, uploads, or old zips. Copy .env.example to .env, set LITEGIG_CRON_TOKEN, keep sample data disabled, enable pdo_sqlite/sqlite3/fileinfo, create a real production admin, run migrations, run maintenance backup, run production audit, and verify health.php.
 ```
 
-Vercel production requires a native port because this backend is PHP + SQLite. The current `vercel-demo/` is maintainer-only static preview material.
+For Vercel deployment, use `dist/litegig-vercel.zip` instead of the PHP shared-host zip.

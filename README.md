@@ -18,7 +18,15 @@ npm run deploy:shared
 
 This stages the PHP runtime and creates `dist/litegig-shared-*.zip` for upload/extract on cPanel or another shared host. The package includes `.htaccess`, `.env.example`, `litegig.php`, `health.php`, app modules, assets, runtime tools, monitoring example, and `README.txt`.
 
-Maintainers can deploy the static demo separately:
+Build the Vercel-ready artifact separately:
+
+```sh
+npm run package:vercel
+```
+
+This creates `dist/litegig-vercel.zip` from the Vercel fileset. Do not upload the shared-host PHP zip to Vercel.
+
+Maintainers can deploy the live Vercel demo directly:
 
 ```sh
 npm run maintainer:deploy:demo
@@ -30,13 +38,15 @@ Shared hosting: run `npm run deploy:shared`, upload the generated zip, extract i
 
 VPS/SSH: run `npm run deploy:shared`, then `rsync` the staged `dist/shared-host/litegig/` directory to the server. Keep `.env`, data, uploads, backups, and logs outside public links where possible.
 
+Vercel: run `npm run package:vercel`, extract `dist/litegig-vercel.zip`, import the extracted files into Vercel, and deploy. This is a separate artifact from the PHP shared-host package.
+
 LLM-assisted deployment prompt:
 
 ```text
 Deploy LiteGig as a PHP 8 + SQLite shared-host app. Use the generated dist/litegig-shared-*.zip or dist/shared-host/litegig directory. Do not deploy tests, node_modules, dist, .git, local SQLite files, uploads, or old zips. Copy .env.example to .env, set a long random LITEGIG_CRON_TOKEN, keep LITEGIG_SAMPLE_DATA_ENABLED=false, ensure pdo_sqlite/sqlite3/fileinfo are enabled, create a real production admin, run php tools/migrate.php up, run php tools/maintenance.php --apply --backup, run php tools/production_audit.php, and verify health.php returns ready=true after the backup.
 ```
 
-Vercel production: the current production backend is PHP + SQLite, which Vercel does not run natively as this app is written. A Vercel production deployment would require a native port to a supported runtime and database. Until then, Vercel is only for the maintainer static demo.
+Vercel deployment uses `dist/litegig-vercel.zip`. The PHP shared-host zip is for PHP hosts only.
 
 ## First Deploy Hardening
 
@@ -93,7 +103,7 @@ Open `http://127.0.0.1:8080/litegig.php`.
 
 ## Verification
 
-Run `php -l litegig.php`, lint the files under `app/`, `tests/`, and `tools/`, run `php tests/authz_matrix.php`, `php tests/status_transitions.php`, `php tests/domain_units.php`, `php tests/task_types.php`, `php tests/attachments.php`, `php tests/user_status.php`, `php tests/admin_access.php`, `php tests/privacy.php`, `php tests/notifications.php`, `php tests/m3_flows.php`, `php tests/admin_reporting.php`, `php tests/migrations.php`, `php tests/backups.php`, `php tests/formatting.php`, `php tests/i18n.php`, `php tests/production_audit.php`, `php tests/health.php`, `php tests/performance_static.php`, `php tests/accessibility_static.php`, `php tests/mobile_static.php`, `php tests/pwa_static.php`, `php tools/validate_pages_config.php`, `php tools/migrate.php status`, `php tools/production_audit.php`, `php tools/security_scan.php litegig.php`, `php tools/secret_scan.php`, `php tools/dependency_scan.php`, and `npm run deploy:shared` before deploying changes.
+Run `php -l litegig.php`, lint the files under `app/`, `tests/`, and `tools/`, run `php tests/authz_matrix.php`, `php tests/status_transitions.php`, `php tests/domain_units.php`, `php tests/task_types.php`, `php tests/attachments.php`, `php tests/user_status.php`, `php tests/admin_access.php`, `php tests/privacy.php`, `php tests/notifications.php`, `php tests/m3_flows.php`, `php tests/admin_reporting.php`, `php tests/migrations.php`, `php tests/backups.php`, `php tests/formatting.php`, `php tests/i18n.php`, `php tests/production_audit.php`, `php tests/health.php`, `php tests/performance_static.php`, `php tests/accessibility_static.php`, `php tests/mobile_static.php`, `php tests/pwa_static.php`, `php tools/validate_pages_config.php`, `php tools/migrate.php status`, `php tools/production_audit.php`, `php tools/security_scan.php litegig.php`, `php tools/secret_scan.php`, `php tools/dependency_scan.php`, `npm run deploy:shared`, and `npm run package:vercel` before deploying changes.
 
 For browser/server checks, use temporary SQLite databases. Run `php tools/access_control_flow.php http://127.0.0.1:8765` against a fresh server first, then use a separate fresh server for `php tools/http_smoke.php`, `php tools/load_smoke.php`, `php tools/e2e_happy_path.php`, and `node tools/render_smoke.js http://127.0.0.1:8765`.
 
