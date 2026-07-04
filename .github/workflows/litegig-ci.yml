@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -56,37 +56,135 @@ jobs:
           php tests/pwa_static.php
 
       - name: Access-control flow smoke
+        shell: bash
         run: |
+          set -euo pipefail
           tmpdir="$(mktemp -d)"
           mkdir -p "$tmpdir/data" "$tmpdir/uploads" "$tmpdir/backups"
+          server_log="$tmpdir/server.log"
+          server_pid=""
+          cleanup() {
+            status=$?
+            if [[ -n "${server_pid:-}" ]]; then
+              kill "$server_pid" 2>/dev/null || true
+              wait "$server_pid" 2>/dev/null || true
+            fi
+            if [[ "$status" -ne 0 ]]; then
+              echo "::group::PHP server log"
+              if [[ -f "$server_log" ]]; then
+                cat "$server_log"
+              else
+                echo "No PHP server log was created."
+              fi
+              echo "::endgroup::"
+            fi
+            rm -rf "$tmpdir"
+            exit "$status"
+          }
+          trap cleanup EXIT
           LITEGIG_DATA_DIR="$tmpdir/data" \
           LITEGIG_DB_PATH="$tmpdir/data/litegig.db" \
           LITEGIG_UPLOAD_DIR="$tmpdir/uploads" \
           LITEGIG_BACKUP_DIR="$tmpdir/backups" \
           LITEGIG_SECURITY_HEADERS=false \
-          php -S 127.0.0.1:8765 -t . > "$tmpdir/server.log" 2>&1 &
+          php -S 127.0.0.1:0 -t . > "$server_log" 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true; rm -rf "$tmpdir"' EXIT
-          sleep 1
-          php tools/access_control_flow.php http://127.0.0.1:8765
+          base_url=""
+          for _ in {1..50}; do
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "PHP server exited before startup."
+              exit 1
+            fi
+            base_url="$(sed -nE 's#.*Development Server \((http://127\.0\.0\.1:[0-9]+)\) started.*#\1#p' "$server_log" | tail -n 1)"
+            if [[ -n "$base_url" ]]; then
+              break
+            fi
+            sleep 0.1
+          done
+          if [[ -z "$base_url" ]]; then
+            echo "PHP server did not announce a listening URL."
+            exit 1
+          fi
+          ready=false
+          for _ in {1..50}; do
+            if php -r '$ctx = stream_context_create(["http" => ["timeout" => 1, "ignore_errors" => true]]); exit(@file_get_contents($argv[1], false, $ctx) === false ? 1 : 0);' "$base_url/index.html"; then
+              ready=true
+              break
+            fi
+            sleep 0.1
+          done
+          if [[ "$ready" != true ]]; then
+            echo "PHP server did not respond at $base_url."
+            exit 1
+          fi
+          php tools/access_control_flow.php "$base_url"
 
       - name: HTTP smoke and load checks
+        shell: bash
         run: |
+          set -euo pipefail
           tmpdir="$(mktemp -d)"
           mkdir -p "$tmpdir/data" "$tmpdir/uploads" "$tmpdir/backups"
+          server_log="$tmpdir/server.log"
+          server_pid=""
+          cleanup() {
+            status=$?
+            if [[ -n "${server_pid:-}" ]]; then
+              kill "$server_pid" 2>/dev/null || true
+              wait "$server_pid" 2>/dev/null || true
+            fi
+            if [[ "$status" -ne 0 ]]; then
+              echo "::group::PHP server log"
+              if [[ -f "$server_log" ]]; then
+                cat "$server_log"
+              else
+                echo "No PHP server log was created."
+              fi
+              echo "::endgroup::"
+            fi
+            rm -rf "$tmpdir"
+            exit "$status"
+          }
+          trap cleanup EXIT
           LITEGIG_DATA_DIR="$tmpdir/data" \
           LITEGIG_DB_PATH="$tmpdir/data/litegig.db" \
           LITEGIG_UPLOAD_DIR="$tmpdir/uploads" \
           LITEGIG_BACKUP_DIR="$tmpdir/backups" \
           LITEGIG_SECURITY_HEADERS=false \
-          php -S 127.0.0.1:8765 -t . > "$tmpdir/server.log" 2>&1 &
+          php -S 127.0.0.1:0 -t . > "$server_log" 2>&1 &
           server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true; rm -rf "$tmpdir"' EXIT
-          sleep 1
-          php tools/http_smoke.php http://127.0.0.1:8765
-          php tools/load_smoke.php http://127.0.0.1:8765 20
-          php tools/e2e_happy_path.php http://127.0.0.1:8765
-          node tools/render_smoke.js http://127.0.0.1:8765
+          base_url=""
+          for _ in {1..50}; do
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "PHP server exited before startup."
+              exit 1
+            fi
+            base_url="$(sed -nE 's#.*Development Server \((http://127\.0\.0\.1:[0-9]+)\) started.*#\1#p' "$server_log" | tail -n 1)"
+            if [[ -n "$base_url" ]]; then
+              break
+            fi
+            sleep 0.1
+          done
+          if [[ -z "$base_url" ]]; then
+            echo "PHP server did not announce a listening URL."
+            exit 1
+          fi
+          ready=false
+          for _ in {1..50}; do
+            if php -r '$ctx = stream_context_create(["http" => ["timeout" => 1, "ignore_errors" => true]]); exit(@file_get_contents($argv[1], false, $ctx) === false ? 1 : 0);' "$base_url/index.html"; then
+              ready=true
+              break
+            fi
+            sleep 0.1
+          done
+          if [[ "$ready" != true ]]; then
+            echo "PHP server did not respond at $base_url."
+            exit 1
+          fi
+          php tools/http_smoke.php "$base_url"
+          php tools/load_smoke.php "$base_url" 20
+          php tools/e2e_happy_path.php "$base_url"
+          node tools/render_smoke.js "$base_url"
 
       - name: Security and manifest checks
         run: |
